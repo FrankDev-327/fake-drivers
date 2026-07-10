@@ -1,0 +1,70 @@
+// ─────────────────────────────────────────
+// LOGS - tail log files and ship to Loki
+// ─────────────────────────────────────────
+
+local.file_match "fake_bolt_logs" {
+  path_targets = [{
+    __path__ = "/logs/*.log",
+  }]
+}
+
+loki.source.file "fake_bolt_logs" {
+  targets    = local.file_match.fake_bolt_logs.targets
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ─────────────────────────────────────────
+// METRICS - scrape all services and push to Prometheus
+// ─────────────────────────────────────────
+
+prometheus.scrape "fake_bolt_services" {
+  targets = [
+    { __address__ = "gateway:3000",              job = "gateway"              },
+    { __address__ = "auth-service:3001",         job = "auth-service"         },
+    { __address__ = "driver-service:3002",       job = "driver-service"       },
+    { __address__ = "rider-service:3003",        job = "rider-service"        },
+    { __address__ = "ride-service:3004",         job = "ride-service"         },
+    { __address__ = "matching-service:3005",     job = "matching-service"     },
+    { __address__ = "payment-service:3006",      job = "payment-service"      },
+    { __address__ = "notification-service:3007", job = "notification-service" },
+  ]
+
+  scrape_interval = "15s"
+  metrics_path    = "/metrics"
+
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.scrape "fake_bolt_exporters" {
+  targets = [
+    // Kafka exporter
+    { __address__ = "kafka-exporter:9308",       job = "kafka"           },
+
+    // Redis exporter
+    { __address__ = "redis-exporter:9121",       job = "redis"           },
+
+    // PostgreSQL exporters (one per database)
+    { __address__ = "auth-db-exporter:9187",     job = "postgres-auth"    },
+    { __address__ = "driver-db-exporter:9187",   job = "postgres-driver"  },
+    { __address__ = "rider-db-exporter:9187",    job = "postgres-rider"   },
+    { __address__ = "ride-db-exporter:9187",     job = "postgres-ride"    },
+    { __address__ = "payment-db-exporter:9187",  job = "postgres-payment" },
+  ]
+
+  scrape_interval = "15s"
+  metrics_path    = "/metrics"
+
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}

@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alloy handles all scraping and pushes metrics here via remote_write
+# Prometheus only needs remote write receiver enabled
+# Start Prometheus with --web.enable-remote-write-receiver flag
+
+rule_files:
+  - /etc/prometheus/alerts.yml

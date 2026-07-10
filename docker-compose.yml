@@ -1,0 +1,596 @@
+version: '3.9'
+
+networks:
+  fake-bolt-network:
+    driver: bridge
+
+volumes:
+  auth-db-data:
+  driver-db-data:
+  rider-db-data:
+  ride-db-data:
+  payment-db-data:
+  redis-data:
+  kafka-data:
+  zookeeper-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  logs-data:
+
+services:
+
+  # ─────────────────────────────────────────
+  # INFRASTRUCTURE
+  # ─────────────────────────────────────────
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 24
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # DATABASES
+  # ─────────────────────────────────────────
+
+  auth-db:
+    image: postgres:16-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  driver-db:
+    image: postgres:16-alpine
+    container_name: driver-db
+    environment:
+      POSTGRES_DB: driver_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - driver-db-data:/var/lib/postgresql/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d driver_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rider-db:
+    image: postgres:16-alpine
+    container_name: rider-db
+    environment:
+      POSTGRES_DB: rider_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - rider-db-data:/var/lib/postgresql/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d rider_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ride-db:
+    image: postgres:16-alpine
+    container_name: ride-db
+    environment:
+      POSTGRES_DB: ride_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ride-db-data:/var/lib/postgresql/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ride_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  payment-db:
+    image: postgres:16-alpine
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d payment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # MICROSERVICES
+  # ─────────────────────────────────────────
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3001
+      DRIVER_SERVICE_URL: http://driver-service:3002
+      RIDER_SERVICE_URL: http://rider-service:3003
+      RIDE_SERVICE_URL: http://ride-service:3004
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      JWT_SECRET: ${JWT_SECRET}
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      driver-service:
+        condition: service_healthy
+      rider-service:
+        condition: service_healthy
+      ride-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@auth-db:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  driver-service:
+    build:
+      context: ./driver-service
+      dockerfile: Dockerfile
+    container_name: driver-service
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@driver-db:5432/driver_db
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      driver-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  rider-service:
+    build:
+      context: ./rider-service
+      dockerfile: Dockerfile
+    container_name: rider-service
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@rider-db:5432/rider_db
+      KAFKA_BROKER: kafka:9092
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      rider-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  matching-service:
+    build:
+      context: ./matching-service
+      dockerfile: Dockerfile
+    container_name: matching-service
+    environment:
+      PORT: 3005
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      SEARCH_RADIUS_KM: 5
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  ride-service:
+    build:
+      context: ./ride-service
+      dockerfile: Dockerfile
+    container_name: ride-service
+    environment:
+      PORT: 3004
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ride-db:5432/ride_db
+      KAFKA_BROKER: kafka:9092
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      ride-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "3007:3007"
+    environment:
+      PORT: 3007
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3007/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    environment:
+      PORT: 3006
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment-db:5432/payment_db
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3006/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # SEED
+  # ─────────────────────────────────────────
+
+  seed:
+    build:
+      context: ./seed
+      dockerfile: Dockerfile
+    container_name: seed
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:3001
+      DRIVER_SERVICE_URL: http://driver-service:3002
+      RIDER_SERVICE_URL: http://rider-service:3003
+      SEED_RIDERS: 200
+      SEED_DRIVERS: 100
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      driver-service:
+        condition: service_healthy
+      rider-service:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+    restart: 'no'
+
+  # ─────────────────────────────────────────
+  # EXPORTERS
+  # ─────────────────────────────────────────
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  auth-db-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: auth-db-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@auth-db:5432/auth_db?sslmode=disable"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  driver-db-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: driver-db-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@driver-db:5432/driver_db?sslmode=disable"
+    depends_on:
+      driver-db:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  rider-db-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: rider-db-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@rider-db:5432/rider_db?sslmode=disable"
+    depends_on:
+      rider-db:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  ride-db-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: ride-db-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ride-db:5432/ride_db?sslmode=disable"
+    depends_on:
+      ride-db:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  payment-db-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: payment-db-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment-db:5432/payment_db?sslmode=disable"
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka-exporter
+    command:
+      - --kafka.server=kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - fake-bolt-network
+
+  # ─────────────────────────────────────────
+  # OBSERVABILITY
+  # ─────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=1d'
+      - '--storage.tsdb.retention.size=512MB'
+      - '--storage.tsdb.path=/prometheus'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus-data:/prometheus
+    networks:
+      - fake-bolt-network
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    ports:
+      - "3300:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - fake-bolt-network
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+    networks:
+      - fake-bolt-network
+
+  grafana-alloy:
+    image: grafana/alloy:latest
+    container_name: grafana-alloy
+    volumes:
+      - ./grafana/alloy-config.alloy:/etc/alloy/config.alloy
+      - logs-data:/logs:ro
+    depends_on:
+      - loki
+      - prometheus
+      - kafka
+      - kafka-exporter
+      - redis-exporter
+      - auth-db-exporter
+      - driver-db-exporter
+      - rider-db-exporter
+      - ride-db-exporter
+      - payment-db-exporter
+      - gateway
+      - auth-service
+      - driver-service
+      - rider-service
+      - ride-service
+      - matching-service
+      - payment-service
+      - notification-service
+    networks:
+      - fake-bolt-network
+
+  # ─────────────────────────────────────────
+  # K6
+  # ─────────────────────────────────────────
+
+  k6:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.k6
+    container_name: k6
+    volumes:
+      - ./k6:/scripts
+    environment:
+      GATEWAY_URL: http://gateway:3000
+      NOTIFICATION_URL: http://notification-service:3007
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+    depends_on:
+      - seed
+      - gateway
+      - notification-service
+    networks:
+      - fake-bolt-network
+    profiles:
+      - testing

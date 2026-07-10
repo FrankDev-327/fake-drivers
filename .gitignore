@@ -1,0 +1,114 @@
+#gateway services
+gateway/node_modules
+gateway/dist
+gateway/.env
+gateway/.vscode
+gateway/coverage
+gateway/build
+gateway/.cache
+gateway/logs
+gateway/.eslintrc*
+gateway/.prettier*
+gateway/.prettiercache
+#gateway services
+
+#aurh-service services
+auth-service/node_modules
+auth-service/dist
+auth-service/.env
+auth-service/.vscode
+auth-service/build
+auth-service/logs
+auth-service/.eslintrc*
+auth-service/.prettier*
+#auth-service services
+
+#driver-service services
+driver-service/node_modules
+driver-service/dist
+driver-service/.env
+driver-service/.vscode
+driver-service/coverage
+driver-service/build
+driver-service/.cache
+driver-service/logs
+driver-service/.eslintrc*
+driver-service/.prettier*
+driver-service/.prettiercache
+#driver-service services
+
+#payment-service services
+payment-service/node_modules
+payment-service/dist
+payment-service/.env
+payment-service/.vscode
+payment-service/coverage
+payment-service/build
+payment-service/.cache
+payment-service/logs
+payment-service/.eslintrc*
+payment-service/.prettier*
+payment-service/.prettiercache
+#payment-service services
+
+#notifications services
+notification-service/node_modules
+notification-service/dist
+notification-service/.env
+notification-service/.vscode
+notification-service/coverage
+notification-service/build
+notification-service/.cache
+notification-service/logs
+notification-service/.eslintrc*
+notification-service/.prettier*
+notification-service/.prettiercache
+#notifications services
+
+#matching services
+matching-service/node_modules
+matching-service/dist
+matching-service/.env
+matching-service/.vscode
+matching-service/coverage
+matching-service/build
+matching-service/.cache
+matching-service/logs
+matching-service/.eslintrc*
+matching-service/.prettier*
+matching-service/.prettiercache
+#matching services
+
+#matching services
+rider-service/node_modules
+rider-service/dist
+rider-service/.env
+rider-service/.vscode
+rider-service/coverage
+rider-service/build
+rider-service/.cache
+rider-service/logs
+rider-service/.eslintrc*
+rider-service/.prettier*
+rider-service/.prettiercache
+#rider services
+
+#seed services
+seed/node_modules
+seed/dist
+seed/.env
+seed/.vscode
+seed/coverage
+seed/build
+seed/.cache
+seed/logs
+seed/.eslintrc*
+seed/.prettier*
+seed/.prettiercache
+#seed services
+
+user_data
+gateway_data
+n8n_data
+
+.env

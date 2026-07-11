@@ -2,9 +2,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { logger } from './common/logger/logger';
+import logger from '../looger';
  
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: false });
  
@@ -16,7 +15,7 @@ async function bootstrap() {
     }),
   );
  
-  const port = process.env.PORT ?? 3001;
+  const port = process.env.PORT;
   await app.listen(port);
  
   logger.info('Auth service started', { port });

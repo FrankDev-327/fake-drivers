@@ -6,14 +6,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { dbdatasource } from '../orm';
 import { HealthcheckController } from './healthcheck/healthcheck.controller';
 import { HealthModule } from './healthcheck/healthcheck.module';
+import { UsersService } from './users/users.service';
+import { UsersController } from './users/users.controller';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [AuthModule, MetricsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot(dbdatasource),
     HealthModule,
+    UsersModule,
   ],
-  controllers: [HealthcheckController],
-  providers: [],
+  controllers: [HealthcheckController, UsersController],
+  providers: [UsersService],
 })
 export class AppModule { }

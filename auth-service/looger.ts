@@ -1,7 +1,7 @@
 import { createLogger, transports, format } from 'winston';
 import * as path from 'path';
 
-export const logger = createLogger({
+const logger = createLogger({
   format: format.combine(
     format.timestamp(),
     format.json(),
@@ -13,3 +13,5 @@ export const logger = createLogger({
     }),
   ],
 });
+
+export default logger;

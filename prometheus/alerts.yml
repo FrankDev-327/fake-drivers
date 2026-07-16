@@ -1,0 +1,135 @@
+groups:
+
+  # ─────────────────────────────────────────
+  # AVAILABILITY
+  # ─────────────────────────────────────────
+
+  - name: availability
+    rules:
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 30 seconds."
+
+      - alert: KafkaConsumerLagHigh
+        expr: kafka_consumer_group_lag > 1000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag is high on {{ $labels.job }}"
+          description: "Consumer group lag is {{ $value }} messages. Consumer may not be keeping up."
+
+  # ─────────────────────────────────────────
+  # PERFORMANCE
+  # ─────────────────────────────────────────
+
+  - name: performance
+    rules:
+
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job, route)) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 latency on {{ $labels.job }} {{ $labels.route }}"
+          description: "p99 latency is {{ $value }}s on {{ $labels.job }} route {{ $labels.route }}. Threshold is 1s."
+
+      - alert: MatchingServiceHighLatency
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job="matching-service"}[5m])) by (le, route)) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Matching service p99 latency above 500ms"
+          description: "p99 latency on matching service is {{ $value }}s. Ride matching is degraded."
+
+  # ─────────────────────────────────────────
+  # ERRORS
+  # ─────────────────────────────────────────
+
+  - name: errors
+    rules:
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate on {{ $labels.job }} is {{ $value | humanizePercentage }}. Threshold is 1%."
+
+      - alert: PaymentHighFailureRate
+        expr: sum(rate(http_requests_total{job="payment-service", status_code=~"5.."}[5m])) / sum(rate(http_requests_total{job="payment-service"}[5m])) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment service failure rate above 5%"
+          description: "Payment failure rate is {{ $value | humanizePercentage }}. Immediate attention required."
+
+      - alert: StripeWebhookVerificationFailures
+        expr: increase(stripe_webhook_verification_failures_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Stripe webhook signature verification failures"
+          description: "{{ $value }} webhook verification failures in the last 5 minutes. Possible attack or misconfiguration."
+
+  # ─────────────────────────────────────────
+  # BUSINESS CRITICAL
+  # ─────────────────────────────────────────
+
+  - name: business
+    rules:
+
+      - alert: RideMatchingTooSlow
+        expr: histogram_quantile(0.99, sum(rate(ride_matching_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ride matching p99 duration above 10 seconds"
+          description: "p99 time from ride request to driver assigned is {{ $value }}s. Riders are waiting too long."
+
+      - alert: DriverLocationStale
+        expr: increase(driver_location_updates_total[30s]) == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No driver location updates in the last 30 seconds"
+          description: "Driver location updates have stopped. Matching service may have stale positions."
+
+  # ─────────────────────────────────────────
+  # INFRASTRUCTURE
+  # ─────────────────────────────────────────
+
+  - name: infrastructure
+    rules:
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage above 80%"
+          description: "Redis is using {{ $value | humanizePercentage }} of available memory. Risk of eviction."
+
+      - alert: PostgresHighConnections
+        expr: sum(pg_stat_activity_count) by (datname) / pg_settings_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connections above 80% on {{ $labels.datname }}"
+          description: "{{ $labels.datname }} is using {{ $value | humanizePercentage }} of max connections."

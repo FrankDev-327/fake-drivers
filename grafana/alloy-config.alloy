@@ -43,18 +43,9 @@ prometheus.scrape "fake_bolt_services" {
 
 prometheus.scrape "fake_bolt_exporters" {
   targets = [
-    // Kafka exporter
-    { __address__ = "kafka-exporter:9308",       job = "kafka"           },
-
-    // Redis exporter
-    { __address__ = "redis-exporter:9121",       job = "redis"           },
-
-    // PostgreSQL exporters (one per database)
-    { __address__ = "auth-db-exporter:9187",     job = "postgres-auth"    },
-    { __address__ = "driver-db-exporter:9187",   job = "postgres-driver"  },
-    { __address__ = "rider-db-exporter:9187",    job = "postgres-rider"   },
-    { __address__ = "ride-db-exporter:9187",     job = "postgres-ride"    },
-    { __address__ = "payment-db-exporter:9187",  job = "postgres-payment" },
+    { __address__ = "kafka-exporter:9308",    job = "kafka"    },
+    { __address__ = "redis-exporter:9121",    job = "redis"    },
+    { __address__ = "postgres-exporter:9187", job = "postgres" },
   ]
 
   scrape_interval = "15s"

@@ -9,6 +9,7 @@ import { AuthMiddleware } from './middleware/auth.middleware';
 import { AuthModule } from './auth/auth.module';
 import { MetricsMiddleware } from './metricsmiddleware/metrics.middleware';
 import { MetricsModule } from './metrics/metrics.module';
+import { DriversModule } from './drivers/drivers.module';
 /* 
 import { MetricsModule } from './common/metrics/metrics.module';
 
@@ -18,6 +19,7 @@ import { RiderModule } from './modules/rider/rider.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { MetricsService } from './metrics/metrics.service';
 import { MetricsController } from './metrics/metrics.controller';
+
 
 
 
@@ -42,6 +44,7 @@ import { MetricsController } from './metrics/metrics.controller';
     HttpModule,
     AuthModule,
     MetricsModule,
+    DriversModule,
     /*MetricsModule,
     AuthModule,
     RideModule,

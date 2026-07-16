@@ -1,12 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
-import { MetricsService } from './metrics.service';
+import { Controller, Get, Res } from "@nestjs/common";
+import { Response } from "express";
+import { MetricsService } from "./metrics.service";
 
-@Controller('metrics')
+@Controller("metrics")
 export class MetricsController {
-    constructor(private readonly metricsService: MetricsService) { }
+  constructor(private readonly metricsService: MetricsService) {}
 
-    @Get()
-    async metrics() {
-        return this.metricsService.getMetrics();
-    }
+  @Get()
+  async getMetrics(@Res() res: Response) {
+    const metrics = await this.metricsService.getMetrics();
+    res.setHeader("Content-Type", "text/plain");
+    return res.send(metrics);
+  }
 }

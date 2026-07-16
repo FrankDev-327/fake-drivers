@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { MetricsModule } from './metrics/metrics.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dbdatasource } from '../orm';
 import { HealthcheckController } from './healthcheck/healthcheck.controller';
 import { HealthModule } from './healthcheck/healthcheck.module';
 import { UsersService } from './users/users.service';
-import { UsersController } from './users/users.controller';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -17,7 +16,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     UsersModule,
   ],
-  controllers: [HealthcheckController, UsersController],
+  controllers: [HealthcheckController],
   providers: [UsersService],
 })
 export class AppModule { }

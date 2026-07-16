@@ -65,13 +65,7 @@ export class UsersService {
         error: (error as Error).message,
         email: dto.email,
       });
-
-      this.metricsService.httpRequestsTotal.inc({
-        method: 'POST',
-        route: '/auth/register',
-        status_code: '500',
-      });
-
+      
       throw new InternalServerErrorException('Failed to register user');
     }
   }

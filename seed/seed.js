@@ -114,8 +114,7 @@ async function main() {
     console.log(`RIDER_SERVICE_URL: ${RIDER_SERVICE_URL}`);
 
     try {
-        await seedDrivers();
-        await seedRiders();
+        await Promise.all([seedDrivers(), seedRiders()]);
         console.log('Seed completed successfully!');
     } catch (error) {
         console.error('Seed failed:', error.message);

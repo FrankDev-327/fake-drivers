@@ -6,12 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Ride, RideStatus } from './ride.entity';
-import { RequestRideDto } from './dto/request-ride.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
+import { RideEntity, RideStatus } from '../entities/ride.entity';
+import { RequestRideDto } from './dto/request.ride.dto';
+import { UpdateStatusDto } from './dto/update.status.dto';
 import { KafkaProducer } from '../kafka/kafka.producer';
 import { KafkaConsumer } from '../kafka/kafka.consumer';
-import { MetricsService } from '../common/metrics/metrics.service';
+import { MetricsService } from '../metrics/metrics.service';
 import logger from '../../logger';
 
 const TOPICS = {
@@ -23,21 +23,20 @@ const TOPICS = {
 @Injectable()
 export class RideService implements OnModuleInit {
   constructor(
-    @InjectRepository(Ride)
-    private readonly rideRepository: Repository<Ride>,
+    @InjectRepository(RideEntity)
+    private readonly rideRepository: Repository<RideEntity>,
     private readonly kafkaProducer: KafkaProducer,
     private readonly kafkaConsumer: KafkaConsumer,
     private readonly metricsService: MetricsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
-    // register handler for driver.assigned event from matching-service
     this.kafkaConsumer.registerHandler('driver.assigned', async (payload) => {
       await this.handleDriverAssigned(payload);
     });
   }
 
-  async requestRide(dto: RequestRideDto): Promise<Ride> {
+  async requestRide(dto: RequestRideDto): Promise<RideEntity> {
     try {
       const ride = this.rideRepository.create({
         riderId: dto.riderId,
@@ -51,7 +50,6 @@ export class RideService implements OnModuleInit {
       });
 
       const saved = await this.rideRepository.save(ride);
-
       await this.kafkaProducer.publish(TOPICS.RIDE_REQUESTED, {
         rideId: saved.id,
         riderId: saved.riderId,
@@ -63,18 +61,16 @@ export class RideService implements OnModuleInit {
       });
 
       this.metricsService.rideRequestsTotal.inc();
-
       logger.info('Ride requested', { rideId: saved.id, riderId: saved.riderId });
 
       return saved;
-
     } catch (error) {
       logger.error('Failed to request ride', { error: (error as Error).message });
       throw new InternalServerErrorException('Failed to request ride');
     }
   }
 
-  async getRide(id: string): Promise<Ride> {
+  async getRide(id: string): Promise<RideEntity> {
     try {
       const ride = await this.rideRepository.findOne({ where: { id } });
       if (!ride) {
@@ -88,7 +84,7 @@ export class RideService implements OnModuleInit {
     }
   }
 
-  async getRidesByRiderId(riderId: string): Promise<Ride[]> {
+  async getRidesByRiderId(riderId: string): Promise<RideEntity[]> {
     try {
       return this.rideRepository.find({
         where: { riderId },
@@ -100,7 +96,7 @@ export class RideService implements OnModuleInit {
     }
   }
 
-  async updateStatus(id: string, dto: UpdateStatusDto): Promise<Ride> {
+  async updateStatus(id: string, dto: UpdateStatusDto): Promise<RideEntity> {
     try {
       const ride = await this.getRide(id);
 

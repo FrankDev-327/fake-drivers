@@ -16,7 +16,7 @@ export enum RideStatus {
 }
 
 @Entity('rides')
-export class Ride {
+export class RideEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

@@ -9,12 +9,12 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { RideService } from './ride.service';
-import { RequestRideDto } from './dto/request-ride.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
+import { RequestRideDto } from './dto/request.ride.dto';
+import { UpdateStatusDto } from './dto/update.status.dto';
 
 @Controller('rides')
 export class RideController {
-  constructor(private readonly rideService: RideService) {}
+  constructor(private readonly rideService: RideService) { }
 
   @Post('request')
   @HttpCode(HttpStatus.CREATED)

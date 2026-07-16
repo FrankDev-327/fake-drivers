@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   InternalServerErrorException,
+  ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -11,6 +12,7 @@ import { KafkaProducer } from "../kafka/kafka.service";
 import { MetricsService } from "../metrics/metrics.service";
 import { UpdateStatusDto } from "./dto/update.status.dto";
 import { UpdateLocationDto } from "./dto/update.location.dto";
+import { CreateDriverDto } from './dto/create.drivers.dto';
 import logger from "../../logger";
 
 const TOPICS = {
@@ -26,7 +28,34 @@ export class DriverService {
     private readonly redisService: RedisService,
     private readonly kafkaProducer: KafkaProducer,
     private readonly metricsService: MetricsService,
-  ) {}
+  ) { }
+
+  async createDriver(dto: CreateDriverDto): Promise<DriverEntity> {
+    try {
+      const exists = await this.driverRepository.getDriver({ where: { email: dto.email } });
+      if (exists) {
+        throw new ConflictException('Driver with this email already exists');
+      }
+
+      const driver = this.driverRepository.create({
+        userId: dto.userId,
+        name: dto.name,
+        email: dto.email,
+        lat: dto.lat ?? null,
+        lng: dto.lng ?? null,
+        status: DriverStatus.OFFLINE,
+      });
+
+      const saved = await this.driverRepository.save(driver);
+      logger.info('Driver created', { driverId: saved.id });
+      return saved;
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      logger.error('Failed to create driver', { error: (error as Error).message });
+      throw new InternalServerErrorException('Failed to create driver');
+    }
+  }
+
 
   async getDriver(id: string): Promise<DriverEntity> {
     try {

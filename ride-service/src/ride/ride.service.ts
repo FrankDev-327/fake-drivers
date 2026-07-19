@@ -99,7 +99,6 @@ export class RideService implements OnModuleInit {
   async updateStatus(id: string, dto: UpdateStatusDto): Promise<RideEntity> {
     try {
       const ride = await this.getRide(id);
-
       await this.rideRepository.update(id, {
         status: dto.status,
         ...(dto.fare && { fare: dto.fare }),
@@ -119,9 +118,7 @@ export class RideService implements OnModuleInit {
       });
 
       this.metricsService.rideStatusUpdatesTotal.inc({ status: dto.status });
-
       logger.info('Ride status updated', { rideId: id, status: dto.status });
-
       return { ...ride, status: dto.status, fare: dto.fare ?? ride.fare };
 
     } catch (error) {

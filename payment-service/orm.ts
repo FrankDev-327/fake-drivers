@@ -13,7 +13,7 @@ export const dbdatasource: DataSourceOptions = {
   entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: ['dist/src/migrations/*{.ts,.js}'],
   subscribers: [],
-  logging: process.env.NODE_ENV !== 'prod',
+  logging: process.env.NODE_ENV !== 'production',
 };
 
 const dataSource = new DataSource(dbdatasource);

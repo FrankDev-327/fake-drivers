@@ -4,8 +4,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dbdatasource } from '../orm';
-import { HealthcheckController } from './healthcheck/healthcheck.controller';
-import { HealthModule } from './healthcheck/healthcheck.module';
+import { HealthController } from './health/health.controller';
 import { UsersService } from './users/users.service';
 import { UsersModule } from './users/users.module';
 import { ProfileModule } from './profile/profile.module';
@@ -14,11 +13,10 @@ import { ProfileModule } from './profile/profile.module';
   imports: [AuthModule, MetricsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot(dbdatasource),
-    HealthModule,
     UsersModule,
     ProfileModule,
   ],
-  controllers: [HealthcheckController],
+  controllers: [HealthController],
   providers: [UsersService],
 })
 export class AppModule { }

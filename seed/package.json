@@ -6,10 +6,11 @@
     "start": "node seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-    "dependencies": {
+  "dependencies": {
     "axios": "^1.6.0"
   },
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "packageManager": "pnpm@10.34.8"
 }

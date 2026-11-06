@@ -1,0 +1,15 @@
+# keep the build context small and secrets out of the image
+node_modules
+dist
+.env
+.env.*
+test
+coverage
+*.log
+*.md
+.git
+.gitignore
+.eslintrc.js
+.prettierrc
+Dockerfile
+.dockerignore

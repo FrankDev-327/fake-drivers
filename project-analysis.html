@@ -70,7 +70,7 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 <main>
 
 <h1>fake-bolt: what's done, what's missing</h1>
-<p class="lead">Gap analysis of the <code>fake-drivers</code> repo as of 6 Nov 2026 (commit <code>43e8fcf</code> plus uncommitted work: Kafka key change, <code>/health</code> controllers). Built from reading every service's source and running <code>tsc --noEmit</code> on each one.</p>
+<p class="lead">Gap analysis of the <code>fake-drivers</code> repo as of 6 Nov 2026 (commit <code>43e8fcf</code> plus <code>/health</code> controllers and the Kafka key fix, commits <code>cb392f1</code> and <code>33f74c2</code>). Built from reading every service's source and running <code>tsc --noEmit</code> on each one.</p>
 
 <div class="cards">
   <div class="card"><div class="n">8</div><div class="l">NestJS services in compose</div></div>
@@ -213,7 +213,7 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 <table>
 <thead><tr><th>Topic</th><th>Producer</th><th>Consumers</th><th>State</th><th>Gap</th></tr></thead>
 <tbody>
-<tr><td><code>ride.requested</code></td><td>ride</td><td>matching</td><td><span class="pill ok">connected</span></td><td>Key by <code>rideId</code> for ordering</td></tr>
+<tr><td><code>ride.requested</code></td><td>ride</td><td>matching</td><td><span class="pill ok">connected</span></td><td>Key by <code>rideId</code> for ordering (driver topics are now keyed by <code>driverId</code>)</td></tr>
 <tr><td><code>driver.assigned</code></td><td>matching</td><td>ride, notification</td><td><span class="pill warn">partial</span></td><td>driver-service doesn't consume it, so DB status stays <code>available</code> and the next location ping re-adds the driver to the GEO pool</td></tr>
 <tr><td><code>ride.status.updated</code></td><td>ride</td><td>notification</td><td><span class="pill warn">partial</span></td><td>The MATCHED event from <code>handleDriverAssigned</code> has no <code>riderId</code>, so the rider is never notified</td></tr>
 <tr><td><code>ride.completed</code></td><td>ride</td><td>notification</td><td><span class="pill warn">partial</span></td><td>payment-service should consume it and charge</td></tr>
@@ -310,7 +310,6 @@ const F = [
  ["P1","Matching","After assignment the driver's DB status stays <code>available</code>, so the next <code>PATCH /location</code> puts them back in the GEO pool. Double assignment. driver-service should consume <code>driver.assigned</code> and set BUSY.","driver-service/src/drivers/drivers.service.ts:123","M"],
  ["P1","Matching","No driver found: just logs and returns. Ride stuck in <code>requested</code>, rider not told. Needs retry with growing radius, then a failed event.","matching-service/src/matching/matching.service.ts","M"],
  ["P1","Matching","<code>handleDriverDeclined</code> says it excludes the declined driver but doesn't, and nothing ever publishes <code>driver.declined</code>.","matching-service/src/matching/matching.service.ts","M"],
- ["P1","Kafka","Uncommitted change puts <code>key</code> on <code>send()</code> instead of inside <code>messages: [{ key, value }]</code>. kafkajs ignores it, so per-driver ordering isn't guaranteed.","driver-service/src/kafka/kafka.service.ts:45","S"],
  ["P1","Kafka","Dual write: DB save then Kafka publish. If publish fails, the ride exists but matching never hears about it (and the API returns 500 for a ride that was created). Transactional outbox fixes it.","ride-service/src/ride/ride.service.ts","L"],
  ["P1","Kafka","Consumers catch and log errors, then the offset is committed. Failed messages are lost. Add retry + dead-letter topic, and make handlers idempotent.","*/kafka/kafka.consumer.ts","M"],
  ["P1","Ride","No state machine: any status can go to any other (completed → requested). Validate transitions.","ride-service/src/ride/ride.service.ts","S"],

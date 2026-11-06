@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: fake-bolt
+    folder: fake-bolt
+    type: file
+    disableDeletion: true
+    options:
+      path: /var/lib/grafana/dashboards

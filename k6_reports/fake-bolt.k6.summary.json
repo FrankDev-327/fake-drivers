@@ -1,4 +1,8 @@
 {
+  "setup_data": {
+    "riderId": "42b70929-d919-4db6-b8ca-aa05187f94cc",
+    "riderToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MmI3MDkyOS1kOTE5LTRkYjYtYjhjYS1hYTA1MTg3Zjk0Y2MiLCJlbWFpbCI6InJpZGVyLnNldHVwLjE3OTM5NjUwOTc3OTAuMjY0Nzg5QGs2LmZha2Vib2x0LmNvbSIsInJvbGUiOiJyaWRlciIsImlhdCI6MTc5Mzk2NTA5NywiZXhwIjoxNzk0NTY5ODk3fQ.p-u1lwAjKaePEK6ZXvx8ni6bhhTKK6F9CjEz2nJ_I8U"
+  },
   "root_group": {
     "name": "",
     "path": "",
@@ -11,52 +15,22 @@
         "groups": [],
         "checks": [
             {
+              "name": "rider registered",
               "path": "::setup::rider registered",
               "id": "2ec1b14ca4c9b27c813d7a4633d2d687",
               "passes": 1,
-              "fails": 0,
-              "name": "rider registered"
+              "fails": 0
             },
             {
-              "passes": 1,
-              "fails": 0,
               "name": "profile loaded",
               "path": "::setup::profile loaded",
-              "id": "246ba7e5e0987cdd59c96f9553273e19"
+              "id": "246ba7e5e0987cdd59c96f9553273e19",
+              "passes": 1,
+              "fails": 0
             }
           ]
       },
       {
-        "id": "067a9a39ae80445091a3de5c128cc3e2",
-        "groups": [],
-        "checks": [
-            {
-              "name": "rider registered",
-              "path": "::rider signs up::rider registered",
-              "id": "2f4615c4f645e0173e48d64abd20373a",
-              "passes": 400,
-              "fails": 0
-            },
-            {
-              "id": "034ec962ad68abea668809e3ec7838e0",
-              "passes": 400,
-              "fails": 0,
-              "name": "profile loaded",
-              "path": "::rider signs up::profile loaded"
-            },
-            {
-              "name": "photo is optional for riders",
-              "path": "::rider signs up::photo is optional for riders",
-              "id": "8b4fa19791ba68ed70e615c720aede76",
-              "passes": 400,
-              "fails": 0
-            }
-          ],
-        "name": "rider signs up",
-        "path": "::rider signs up"
-      },
-      {
-        "path": "::driver signs up",
         "id": "57d7fe88b0e436085ac8c2d3ae36621a",
         "groups": [],
         "checks": [
@@ -68,11 +42,11 @@
               "fails": 0
             },
             {
-              "passes": 284,
-              "fails": 0,
               "name": "profile loaded",
               "path": "::driver signs up::profile loaded",
-              "id": "da8f695758eef71b577f54887c0fbdec"
+              "id": "da8f695758eef71b577f54887c0fbdec",
+              "passes": 284,
+              "fails": 0
             },
             {
               "fails": 0,
@@ -82,26 +56,57 @@
               "passes": 284
             },
             {
+              "fails": 0,
               "name": "driver profile created",
               "path": "::driver signs up::driver profile created",
               "id": "f9085a15d1602f3fa8a45f1c2c8eba39",
-              "passes": 284,
-              "fails": 0
+              "passes": 284
             }
           ],
-        "name": "driver signs up"
+        "name": "driver signs up",
+        "path": "::driver signs up"
       },
       {
+        "checks": [
+          {
+            "name": "rider registered",
+            "path": "::rider signs up::rider registered",
+            "id": "2f4615c4f645e0173e48d64abd20373a",
+            "passes": 396,
+            "fails": 0
+          },
+          {
+            "id": "034ec962ad68abea668809e3ec7838e0",
+            "passes": 396,
+            "fails": 0,
+            "name": "profile loaded",
+            "path": "::rider signs up::profile loaded"
+          },
+          {
+            "id": "8b4fa19791ba68ed70e615c720aede76",
+            "passes": 396,
+            "fails": 0,
+            "name": "photo is optional for riders",
+            "path": "::rider signs up::photo is optional for riders"
+          }
+        ],
+        "name": "rider signs up",
+        "path": "::rider signs up",
+        "id": "067a9a39ae80445091a3de5c128cc3e2",
+        "groups": []
+      },
+      {
+        "name": "no photo, no work",
         "path": "::no photo, no work",
         "id": "b78052d7f9406ece58e7ef79e4b539b4",
         "groups": [],
         "checks": [
             {
+              "passes": 284,
               "fails": 0,
               "name": "cannot go online without a photo",
               "path": "::no photo, no work::cannot go online without a photo",
-              "id": "b23b042dd1fad630c2719de136ad6734",
-              "passes": 284
+              "id": "b23b042dd1fad630c2719de136ad6734"
             },
             {
               "name": "refusal asks for a photo",
@@ -110,8 +115,7 @@
               "passes": 284,
               "fails": 0
             }
-          ],
-        "name": "no photo, no work"
+          ]
       },
       {
         "name": "photo rules",
@@ -127,18 +131,18 @@
               "fails": 0
             },
             {
-              "name": "non-image type refused",
-              "path": "::photo rules::non-image type refused",
               "id": "4cce5e00d0d44fc1edb33fa05406f759",
               "passes": 284,
-              "fails": 0
+              "fails": 0,
+              "name": "non-image type refused",
+              "path": "::photo rules::non-image type refused"
             },
             {
+              "name": "photo upload url created",
               "path": "::photo rules::photo upload url created",
               "id": "826a90ad048caebbeda81b99908d2f3d",
               "passes": 568,
-              "fails": 0,
-              "name": "photo upload url created"
+              "fails": 0
             },
             {
               "fails": 0,
@@ -148,82 +152,82 @@
               "passes": 568
             },
             {
+              "passes": 284,
               "fails": 0,
               "name": "fake photo rejected on confirm",
               "path": "::photo rules::fake photo rejected on confirm",
-              "id": "091ddd59b989bf94baad87d181ce0611",
-              "passes": 284
-            },
-            {
-              "name": "rejection says it is not a real image",
-              "path": "::photo rules::rejection says it is not a real image",
-              "id": "b74e75d5ca043c53e68de48390d297ff",
-              "passes": 284,
-              "fails": 0
-            },
-            {
-              "name": "still cannot go online after a fake photo",
-              "path": "::photo rules::still cannot go online after a fake photo",
-              "id": "55b67809dde9eb0484009f617840f44f",
-              "passes": 284,
-              "fails": 0
+              "id": "091ddd59b989bf94baad87d181ce0611"
             },
             {
               "fails": 0,
-              "name": "real photo accepted",
-              "path": "::photo rules::real photo accepted",
-              "id": "4c8e3ec3885980a1edf0389e56e8a043",
+              "name": "rejection says it is not a real image",
+              "path": "::photo rules::rejection says it is not a real image",
+              "id": "b74e75d5ca043c53e68de48390d297ff",
               "passes": 284
             },
             {
-              "name": "profile shows the photo url",
-              "path": "::photo rules::profile shows the photo url",
+              "path": "::photo rules::still cannot go online after a fake photo",
+              "id": "55b67809dde9eb0484009f617840f44f",
+              "passes": 284,
+              "fails": 0,
+              "name": "still cannot go online after a fake photo"
+            },
+            {
+              "id": "4c8e3ec3885980a1edf0389e56e8a043",
+              "passes": 284,
+              "fails": 0,
+              "name": "real photo accepted",
+              "path": "::photo rules::real photo accepted"
+            },
+            {
               "id": "5b236179b505998f86e66d3c56180e37",
               "passes": 284,
-              "fails": 0
+              "fails": 0,
+              "name": "profile shows the photo url",
+              "path": "::photo rules::profile shows the photo url"
             }
           ]
       },
       {
+        "name": "rider logs in",
+        "path": "::rider logs in",
         "id": "2b494c45af85c923b5277ec587e0bef6",
         "groups": [],
         "checks": [
             {
-              "name": "rider logged in",
-              "path": "::rider logs in::rider logged in",
               "id": "f6b6c4f782569f2f0b489fdbf4b43b8d",
-              "passes": 400,
-              "fails": 0
+              "passes": 396,
+              "fails": 0,
+              "name": "rider logged in",
+              "path": "::rider logs in::rider logged in"
             }
-          ],
-        "name": "rider logs in",
-        "path": "::rider logs in"
+          ]
       },
       {
-        "groups": [],
         "checks": [
-            {
-              "name": "wrong password gives 401",
-              "path": "::wrong password refused::wrong password gives 401",
-              "id": "01996ec5a929e4c16520209244ca3fc0",
-              "passes": 400,
-              "fails": 0
-            }
-          ],
+          {
+            "name": "wrong password gives 401",
+            "path": "::wrong password refused::wrong password gives 401",
+            "id": "01996ec5a929e4c16520209244ca3fc0",
+            "passes": 396,
+            "fails": 0
+          }
+        ],
         "name": "wrong password refused",
         "path": "::wrong password refused",
-        "id": "75e11e59f8f35c9d6b48838ea8af2383"
+        "id": "75e11e59f8f35c9d6b48838ea8af2383",
+        "groups": []
       },
       {
         "id": "708ec5dfff8b1b5e623b0630832b0875",
         "groups": [],
         "checks": [
             {
+              "passes": 284,
+              "fails": 0,
               "name": "driver online after a real photo",
               "path": "::driver goes online::driver online after a real photo",
-              "id": "3581ea22c5066539f5fb922a9bd86c56",
-              "passes": 284,
-              "fails": 0
+              "id": "3581ea22c5066539f5fb922a9bd86c56"
             },
             {
               "name": "location updated",
@@ -237,22 +241,23 @@
         "path": "::driver goes online"
       },
       {
+        "path": "::ride: request, assignment, completion",
         "id": "88964cd3d7791bd87ec45a573a58954f",
         "groups": [],
         "checks": [
             {
-              "fails": 0,
               "name": "ride requested",
               "path": "::ride: request, assignment, completion::ride requested",
               "id": "9bf49de8532212fb1d312d9e40be70ea",
-              "passes": 284
+              "passes": 284,
+              "fails": 0
             },
             {
+              "name": "driver got the ride request",
               "path": "::ride: request, assignment, completion::driver got the ride request",
               "id": "85b911e6186da2ce071defb5ad646e60",
               "passes": 284,
-              "fails": 0,
-              "name": "driver got the ride request"
+              "fails": 0
             },
             {
               "fails": 0,
@@ -269,11 +274,11 @@
               "fails": 0
             },
             {
-              "name": "ride matched to this driver",
-              "path": "::ride: request, assignment, completion::ride matched to this driver",
               "id": "8594797e3367a45cb415abc7e54d0659",
               "passes": 284,
-              "fails": 0
+              "fails": 0,
+              "name": "ride matched to this driver",
+              "path": "::ride: request, assignment, completion::ride matched to this driver"
             },
             {
               "name": "ride started",
@@ -297,37 +302,36 @@
               "fails": 0
             },
             {
-              "path": "::ride: request, assignment, completion::driver available again after the ride",
-              "id": "df66116cd320aded06dcc4fd4e6b665f",
               "passes": 284,
               "fails": 0,
-              "name": "driver available again after the ride"
+              "name": "driver available again after the ride",
+              "path": "::ride: request, assignment, completion::driver available again after the ride",
+              "id": "df66116cd320aded06dcc4fd4e6b665f"
             },
             {
-              "fails": 0,
-              "name": "rider got the ride receipt email",
               "path": "::ride: request, assignment, completion::rider got the ride receipt email",
               "id": "6c988bec211a985ac4add310ccaa1e32",
-              "passes": 284
+              "passes": 284,
+              "fails": 0,
+              "name": "rider got the ride receipt email"
             }
           ],
-        "name": "ride: request, assignment, completion",
-        "path": "::ride: request, assignment, completion"
+        "name": "ride: request, assignment, completion"
       },
       {
-        "name": "driver goes offline",
-        "path": "::driver goes offline",
         "id": "02b660eb37f1068998b367502d1b8937",
         "groups": [],
         "checks": [
             {
+              "passes": 284,
               "fails": 0,
               "name": "driver offline at the end of the shift",
               "path": "::driver goes offline::driver offline at the end of the shift",
-              "id": "764def6712035e7cc78b6697c3f2ea74",
-              "passes": 284
+              "id": "764def6712035e7cc78b6697c3f2ea74"
             }
-          ]
+          ],
+        "name": "driver goes offline",
+        "path": "::driver goes offline"
       }
     ],
     "checks": []
@@ -346,27 +350,305 @@
     "noColor": false
   },
   "state": {
-    "isStdErrTTY": true,
-    "testRunDurationMs": 241891.044744,
-    "isStdOutTTY": true
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 241137.300047
   },
   "metrics": {
-    "ws_connecting": {
+    "photo_upload_refused": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 568,
+        "rate": 2.355504519165186
+      }
+    },
+    "http_req_failed": {
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 8830
+      },
+      "thresholds": {
+        "rate<0.05": {
+          "ok": true
+        }
+      },
+      "type": "rate",
+      "contains": "default"
+    },
+    "register_duration": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "avg": 0.6481067992957745,
-        "min": 0.431374,
-        "med": 0.564431,
-        "p(90)": 0.8358664,
-        "p(95)": 0.9903098999999992,
-        "p(99)": 1.921366260000015,
-        "max": 3.334082
+        "p(90)": 83.804171,
+        "p(95)": 88.586979,
+        "p(99)": 129.36802320000018,
+        "max": 1390.122804,
+        "avg": 75.30482977826728,
+        "min": 58.633611,
+        "med": 65.057478
+      }
+    },
+    "photo_upload_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 2.568092926056337,
+        "min": 0.920169,
+        "med": 1.259187,
+        "p(90)": 1.8048036,
+        "p(95)": 2.253737199999999,
+        "p(99)": 5.251805460000123,
+        "max": 424.918855
+      }
+    },
+    "ws_msgs_sent": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 16.71397729456396,
+        "min": 0.920169,
+        "med": 4.3746575,
+        "p(90)": 61.6186978,
+        "p(95)": 70.44815289999998,
+        "p(99)": 86.92051791999998,
+        "max": 1617.996179
+      }
+    },
+    "http_req_duration{test_type:driver_flow}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 3.960099,
+        "p(90)": 10.7718354,
+        "p(95)": 21.432363499999973,
+        "p(99)": 73.78198812999999,
+        "max": 1617.996179,
+        "avg": 8.830520801490911,
+        "min": 0.920169
       },
       "thresholds": {
-        "p(95)<1000": {
+        "p(95)<800": {
           "ok": true
         }
+      }
+    },
+    "rides_requested": {
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      },
+      "type": "counter"
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 1617.996179,
+        "avg": 16.71397729456396,
+        "min": 0.920169,
+        "med": 4.3746575,
+        "p(90)": 61.6186978,
+        "p(95)": 70.44815289999998,
+        "p(99)": 86.92051791999998
+      }
+    },
+    "photo_sync_time": {
+      "contains": "time",
+      "values": {
+        "avg": 52.021126760563384,
+        "min": 4,
+        "med": 6,
+        "p(90)": 11,
+        "p(95)": 512.8499999999999,
+        "p(99)": 543.4000000000003,
+        "max": 2122
+      },
+      "thresholds": {
+        "p(95)<5000": {
+          "ok": true
+        }
+      },
+      "type": "trend"
+    },
+    "no_photo_refused_rate": {
+      "values": {
+        "rate": 1,
+        "passes": 568,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": true
+        }
+      },
+      "type": "rate",
+      "contains": "default"
+    },
+    "rides_assigned": {
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      },
+      "type": "counter"
+    },
+    "ws_sessions": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      }
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 0.007968399999999994,
+        "p(99)": 0.012052069999999897,
+        "max": 2.698148,
+        "avg": 0.005358743148357881,
+        "min": 0.001604,
+        "med": 0.003837,
+        "p(90)": 0.006703
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "min": 7,
+        "max": 7,
+        "value": 7
+      }
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0,
+        "max": 0,
+        "avg": 0,
+        "min": 0,
+        "med": 0
+      }
+    },
+    "driver_online_rate": {
+      "values": {
+        "rate": 1,
+        "passes": 284,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.95": {
+          "ok": true
+        }
+      },
+      "type": "rate",
+      "contains": "default"
+    },
+    "photo_upload_url_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 3.257428452464787,
+        "min": 1.486836,
+        "med": 2.9126525,
+        "p(90)": 4.9250925,
+        "p(95)": 5.93583025,
+        "p(99)": 9.822543150000014,
+        "max": 21.440387
+      }
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 1,
+        "min": 1,
+        "max": 7
+      }
+    },
+    "login_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 112.424363,
+        "avg": 65.1171014217172,
+        "min": 56.019784,
+        "med": 60.8903775,
+        "p(90)": 78.1231375,
+        "p(95)": 83.87322075,
+        "p(99)": 98.55261515000001
+      }
+    },
+    "drivers_released": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      }
+    },
+    "group_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 683.4257700000037,
+        "p(95)": 1549.0872325999999,
+        "p(99)": 1804.24113541,
+        "max": 3393.920664,
+        "avg": 202.91354867496523,
+        "min": 2.480664,
+        "med": 60.456541
+      }
+    },
+    "ride_complete_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 11.29352235915493,
+        "min": 3.610348,
+        "med": 5.442978999999999,
+        "p(90)": 9.821631100000003,
+        "p(95)": 14.915930499999982,
+        "p(99)": 24.790877760000033,
+        "max": 1330.826417
+      }
+    },
+    "ride_assigned_rate": {
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 284,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.90": {
+          "ok": true
+        }
+      },
+      "type": "rate"
+    },
+    "photos_confirmed": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
       }
     },
     "drivers_online": {
@@ -374,155 +656,66 @@
       "contains": "default",
       "values": {
         "count": 284,
-        "rate": 1.1740823241330207
+        "rate": 1.177752259582593
       }
     },
-    "data_sent": {
+    "ws_msgs_received": {
       "type": "counter",
-      "contains": "data",
+      "contains": "default",
       "values": {
-        "count": 3876430,
-        "rate": 16025.520928658329
+        "count": 1704,
+        "rate": 7.0665135574955595
       }
     },
-    "photo_confirm_duration": {
-      "type": "trend",
-      "contains": "time",
+    "driver_location_duration": {
       "values": {
-        "avg": 12.885104749999998,
-        "min": 6.530247,
-        "med": 11.0614945,
-        "p(90)": 18.3436936,
-        "p(95)": 23.24600815,
-        "p(99)": 46.25689999000044,
-        "max": 122.528378
-      }
+        "p(90)": 9.289607200000003,
+        "p(95)": 13.106179449999983,
+        "p(99)": 63.764299510000065,
+        "max": 824.987092,
+        "avg": 11.065527179577467,
+        "min": 4.281136,
+        "med": 5.589411
+      },
+      "type": "trend",
+      "contains": "time"
     },
     "ride_request_duration": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "avg": 7.308860095070425,
-        "min": 3.378694,
-        "med": 4.3727385,
-        "p(90)": 10.918226500000006,
-        "p(95)": 15.34143794999999,
-        "p(99)": 44.274713770000574,
-        "max": 280.456157
+        "avg": 6.075148320422531,
+        "min": 3.38335,
+        "med": 4.1474709999999995,
+        "p(90)": 6.8275611000000005,
+        "p(95)": 12.38878639999995,
+        "p(99)": 47.19730018000028,
+        "max": 96.401878
       }
     },
-    "driver_online_refused_no_photo": {
+    "busy_status_change_refused": {
+      "type": "counter",
       "contains": "default",
       "values": {
         "count": 284,
-        "rate": 1.1740823241330207
-      },
-      "type": "counter"
+        "rate": 1.177752259582593
+      }
     },
     "iterations": {
-      "values": {
-        "count": 684,
-        "rate": 2.8277194003767114
-      },
-      "type": "counter",
-      "contains": "default"
-    },
-    "rides_completed": {
       "type": "counter",
       "contains": "default",
       "values": {
-        "rate": 1.1740823241330207,
-        "count": 284
+        "count": 680,
+        "rate": 2.819970199000575
       }
     },
-    "http_req_duration{expected_response:true}": {
-      "values": {
-        "max": 743.198771,
-        "avg": 16.316935553015735,
-        "min": 1.031065,
-        "med": 4.58766,
-        "p(90)": 61.927160400000005,
-        "p(95)": 68.71495539999997,
-        "p(99)": 89.26112751999995
-      },
-      "type": "trend",
-      "contains": "time"
-    },
-    "photos_uploaded": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 568,
-        "rate": 2.3481646482660414
-      }
-    },
-    "rides_assigned": {
+    "receipts_delivered": {
       "type": "counter",
       "contains": "default",
       "values": {
         "count": 284,
-        "rate": 1.1740823241330207
+        "rate": 1.177752259582593
       }
-    },
-    "driver_status_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "avg": 6.483604859600823,
-        "min": 2.182457,
-        "med": 4.881215,
-        "p(90)": 8.977078800000001,
-        "p(95)": 12.371507599999996,
-        "p(99)": 34.076156840000024,
-        "max": 379.22989
-      }
-    },
-    "http_req_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "p(95)": 68.71495539999997,
-        "p(99)": 89.26112751999995,
-        "max": 743.198771,
-        "avg": 16.316935553015735,
-        "min": 1.031065,
-        "med": 4.58766,
-        "p(90)": 61.927160400000005
-      }
-    },
-    "http_req_tls_handshaking": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "avg": 0,
-        "min": 0,
-        "med": 0,
-        "p(90)": 0,
-        "p(95)": 0,
-        "p(99)": 0,
-        "max": 0
-      }
-    },
-    "login_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "p(99)": 97.24658762,
-        "max": 110.578892,
-        "avg": 64.54538963250008,
-        "min": 55.843972,
-        "med": 61.239957000000004,
-        "p(90)": 77.337359,
-        "p(95)": 83.16621339999999
-      }
-    },
-    "ws_msgs_sent": {
-      "contains": "default",
-      "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
-      },
-      "type": "counter"
     },
     "fake_photo_rejected_rate": {
       "type": "rate",
@@ -538,288 +731,177 @@
         }
       }
     },
-    "iteration_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "p(90)": 2921.0709276000002,
-        "p(95)": 3062.1371498500007,
-        "p(99)": 3677.196808359994,
-        "max": 4478.676406,
-        "avg": 1853.4971854780706,
-        "min": 1175.669623,
-        "med": 1229.2085445
-      }
-    },
-    "photo_upload_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "p(90)": 2.1078156000000003,
-        "p(95)": 2.6275197499999985,
-        "p(99)": 10.866759260000082,
-        "max": 146.280236,
-        "avg": 1.9637684102112662,
-        "min": 1.031065,
-        "med": 1.3019115
-      }
-    },
-    "no_photo_refused_rate": {
-      "type": "rate",
-      "contains": "default",
-      "values": {
-        "rate": 1,
-        "passes": 568,
-        "fails": 0
-      },
-      "thresholds": {
-        "rate>0.99": {
-          "ok": true
-        }
-      }
-    },
-    "photos_confirmed": {
+    "rides_completed": {
       "type": "counter",
       "contains": "default",
       "values": {
         "count": 284,
-        "rate": 1.1740823241330207
+        "rate": 1.177752259582593
       }
     },
-    "http_req_connecting": {
+    "http_req_waiting": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "med": 0,
-        "p(90)": 0,
-        "p(95)": 0,
-        "p(99)": 0,
-        "max": 0.190127,
-        "avg": 0.0003339115084304628,
-        "min": 0
+        "p(99)": 86.81404549999998,
+        "max": 1617.917663,
+        "avg": 16.63246190260476,
+        "min": 0.872126,
+        "med": 4.2805685,
+        "p(90)": 61.5361628,
+        "p(95)": 70.36616724999999
       }
     },
-    "http_req_duration{test_type:rider_app}": {
+    "photo_upload_urls": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 568,
+        "rate": 2.355504519165186
+      }
+    },
+    "photo_confirm_duration": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "max": 204.009846,
-        "avg": 50.78864226062494,
-        "min": 1.647508,
-        "med": 60.5579125,
-        "p(90)": 77.66375690000002,
-        "p(95)": 84.38035565,
-        "p(99)": 107.28339267999999
+        "p(99)": 32.51822377000007,
+        "max": 212.09299,
+        "avg": 12.317184045774647,
+        "min": 6.388796,
+        "med": 10.041042000000001,
+        "p(90)": 16.916656500000002,
+        "p(95)": 20.686830099999998
+      }
+    },
+    "riders_registered": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 397,
+        "rate": 1.6463649544165122
+      }
+    },
+    "receipt_delivered_rate": {
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 284,
+        "fails": 0
       },
       "thresholds": {
-        "p(95)<500": {
+        "rate>0.90": {
           "ok": true
         }
-      }
+      },
+      "type": "rate"
     },
-    "http_req_sending": {
-      "type": "trend",
+    "receipt_delivery_time": {
       "contains": "time",
       "values": {
-        "min": 0.005792,
-        "med": 0.016317,
-        "p(90)": 0.0259654,
-        "p(95)": 0.029602599999999996,
-        "p(99)": 0.042237839999999985,
-        "max": 0.775354,
-        "avg": 0.018278914563766003
-      }
-    },
-    "ride_assignment_time": {
-      "contains": "time",
-      "values": {
-        "p(99)": 70.19000000000011,
-        "max": 291,
-        "avg": 10.616197183098592,
-        "min": 5,
-        "med": 7,
-        "p(90)": 16.700000000000017,
-        "p(95)": 18
+        "max": 529,
+        "avg": 287.443661971831,
+        "min": 4,
+        "med": 512,
+        "p(90)": 517,
+        "p(95)": 518.8499999999999,
+        "p(99)": 522.34
       },
       "thresholds": {
-        "p(95)<5000": {
+        "p(95)<10000": {
           "ok": true
         }
       },
       "type": "trend"
     },
-    "photo_upload_urls": {
-      "contains": "default",
-      "values": {
-        "rate": 2.3481646482660414,
-        "count": 568
-      },
-      "type": "counter"
-    },
-    "http_req_duration{test_type:driver_flow}": {
-      "values": {
-        "p(95)": 26.897712099999936,
-        "p(99)": 76.12571922,
-        "max": 743.198771,
-        "avg": 8.683960085832776,
-        "min": 1.031065,
-        "med": 4.152124,
-        "p(90)": 12.50228860000001
-      },
-      "thresholds": {
-        "p(95)<800": {
-          "ok": true
-        }
-      },
+    "ws_connecting": {
       "type": "trend",
-      "contains": "time"
-    },
-    "photo_upload_refused": {
-      "type": "counter",
-      "contains": "default",
+      "contains": "time",
       "values": {
-        "count": 568,
-        "rate": 2.3481646482660414
-      }
-    },
-    "vus_max": {
-      "type": "gauge",
-      "contains": "default",
-      "values": {
-        "value": 7,
-        "min": 7,
-        "max": 7
-      }
-    },
-    "receipt_delivered_rate": {
-      "values": {
-        "rate": 1,
-        "passes": 284,
-        "fails": 0
+        "p(95)": 0.9409198499999993,
+        "p(99)": 2.202002040000001,
+        "max": 4.980409,
+        "avg": 0.6304951126760563,
+        "min": 0.426856,
+        "med": 0.545791,
+        "p(90)": 0.8238697000000001
       },
       "thresholds": {
-        "rate>0.90": {
+        "p(95)<1000": {
           "ok": true
         }
-      },
-      "type": "rate",
-      "contains": "default"
+      }
     },
-    "driver_release_time": {
+    "http_req_duration{test_type:rider_app}": {
       "thresholds": {
-        "p(95)<5000": {
+        "p(95)<500": {
           "ok": true
         }
       },
       "type": "trend",
       "contains": "time",
       "values": {
-        "p(99)": 269.51000000000005,
-        "max": 279,
-        "avg": 120.04225352112677,
-        "min": 2,
-        "med": 8,
-        "p(90)": 259,
-        "p(95)": 260
+        "avg": 52.710504326388815,
+        "min": 1.757629,
+        "med": 60.3411195,
+        "p(90)": 78.4592823,
+        "p(95)": 84.77080329999998,
+        "p(99)": 98.64529151000005,
+        "max": 1390.122804
       }
     },
     "http_reqs": {
-      "values": {
-        "count": 8837,
-        "rate": 36.53297710691374
-      },
-      "type": "counter",
-      "contains": "default"
-    },
-    "receipts_delivered": {
-      "type": "counter",
       "contains": "default",
       "values": {
-        "rate": 1.1740823241330207,
-        "count": 284
-      }
-    },
-    "drivers_registered": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
-      }
-    },
-    "http_req_waiting": {
-      "values": {
-        "p(95)": 68.63731279999999,
-        "p(99)": 89.15029079999994,
-        "max": 743.115213,
-        "avg": 16.230394068348936,
-        "min": 0.987524,
-        "med": 4.494224,
-        "p(90)": 61.837859400000006
+        "count": 8830,
+        "rate": 36.61814243702217
       },
+      "type": "counter"
+    },
+    "http_req_sending": {
       "type": "trend",
-      "contains": "time"
-    },
-    "fake_photos_rejected": {
-      "type": "counter",
-      "contains": "default",
+      "contains": "time",
       "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
+        "avg": 0.01729664835787086,
+        "min": 0.005951,
+        "med": 0.0155075,
+        "p(90)": 0.0245965,
+        "p(95)": 0.028210049999999993,
+        "p(99)": 0.03859471999999989,
+        "max": 0.553921
       }
     },
-    "ride_assigned_rate": {
+    "data_received": {
       "values": {
-        "rate": 1,
-        "passes": 284,
-        "fails": 0
+        "count": 13053145,
+        "rate": 54131.58809299024
       },
-      "thresholds": {
-        "rate>0.90": {
-          "ok": true
-        }
-      },
-      "type": "rate",
-      "contains": "default"
+      "type": "counter",
+      "contains": "data"
     },
-    "photo_upload_url_duration": {
-      "values": {
-        "avg": 3.391111543133802,
-        "min": 1.500539,
-        "med": 3.0245815,
-        "p(90)": 5.1444244999999995,
-        "p(95)": 6.5201365000000004,
-        "p(99)": 9.588726150000008,
-        "max": 21.015381
-      },
+    "ws_session_duration": {
       "type": "trend",
-      "contains": "time"
-    },
-    "http_req_failed": {
+      "contains": "time",
       "values": {
-        "rate": 0,
-        "passes": 0,
-        "fails": 8837
-      },
-      "thresholds": {
-        "rate<0.05": {
-          "ok": true
-        }
-      },
-      "type": "rate",
-      "contains": "default"
+        "p(99)": 1389.7588431400002,
+        "max": 2612.58834,
+        "avg": 1151.6550623591554,
+        "min": 1023.822272,
+        "med": 1043.723232,
+        "p(90)": 1289.8798709,
+        "p(95)": 1311.9813424
+      }
     },
     "driver_busy_sync_time": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "avg": 98,
+        "avg": 114.66901408450704,
         "min": 3,
-        "med": 6,
-        "p(90)": 258,
+        "med": 7,
+        "p(90)": 259,
         "p(95)": 260,
-        "p(99)": 272.17,
-        "max": 516
+        "p(99)": 263,
+        "max": 266
       },
       "thresholds": {
         "p(95)<3000": {
@@ -827,192 +909,75 @@
         }
       }
     },
-    "receipt_delivery_time": {
-      "thresholds": {
-        "p(95)<10000": {
-          "ok": true
-        }
-      },
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "med": 511,
-        "p(90)": 517,
-        "p(95)": 519,
-        "p(99)": 523.1700000000001,
-        "max": 528,
-        "avg": 280.17605633802816,
-        "min": 4
-      }
-    },
-    "register_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "avg": 72.31537200729923,
-        "min": 58.566471,
-        "med": 64.929653,
-        "p(90)": 84.641235,
-        "p(95)": 97.03184739999998,
-        "p(99)": 152.5214739199998,
-        "max": 743.198771
-      }
-    },
-    "ws_msgs_received": {
-      "values": {
-        "count": 1704,
-        "rate": 7.044493944798123
-      },
+    "fake_photos_rejected": {
       "type": "counter",
-      "contains": "default"
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      }
     },
-    "data_received": {
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 0,
+        "p(99)": 0,
+        "max": 0.313706,
+        "avg": 0.00036051030577576455,
+        "min": 0,
+        "med": 0,
+        "p(90)": 0
+      }
+    },
+    "driver_online_refused_no_photo": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      }
+    },
+    "drivers_registered": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 284,
+        "rate": 1.177752259582593
+      }
+    },
+    "driver_status_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 6.868377191533662,
+        "min": 2.199936,
+        "med": 4.656592,
+        "p(90)": 8.407622,
+        "p(95)": 10.009936,
+        "p(99)": 21.58530439999994,
+        "max": 1617.996179
+      }
+    },
+    "data_sent": {
       "type": "counter",
       "contains": "data",
       "values": {
-        "count": 12962785,
-        "rate": 53589.35471843894
+        "count": 3874363,
+        "rate": 16067.041470750684
       }
     },
-    "riders_registered": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "rate": 1.6577711689343002,
-        "count": 401
-      }
-    },
-    "vus": {
-      "contains": "default",
-      "values": {
-        "max": 7,
-        "value": 2,
-        "min": 2
-      },
-      "type": "gauge"
-    },
-    "users_me_duration": {
+    "driver_release_time": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "p(95)": 5.306180199999998,
-        "p(99)": 7.902934599999992,
-        "max": 10.898115,
-        "avg": 2.910135661313867,
-        "min": 1.647508,
-        "med": 2.50949,
-        "p(90)": 4.395665000000002
-      }
-    },
-    "ws_session_duration": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "max": 2013.052729,
-        "avg": 1135.7112072147884,
-        "min": 1023.897166,
-        "med": 1040.1957535000001,
-        "p(90)": 1305.7089732000002,
-        "p(95)": 1318.88263025,
-        "p(99)": 1410.8703658100014
-      }
-    },
-    "rides_requested": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
-      }
-    },
-    "busy_status_change_refused": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
-      }
-    },
-    "drivers_released": {
-      "contains": "default",
-      "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
-      },
-      "type": "counter"
-    },
-    "http_req_receiving": {
-      "values": {
-        "p(95)": 0.103831,
-        "p(99)": 0.15140904,
-        "max": 1.009926,
-        "avg": 0.06826257010297641,
-        "min": 0.019361,
-        "med": 0.063797,
-        "p(90)": 0.09330100000000001
-      },
-      "type": "trend",
-      "contains": "time"
-    },
-    "ws_sessions": {
-      "type": "counter",
-      "contains": "default",
-      "values": {
-        "count": 284,
-        "rate": 1.1740823241330207
-      }
-    },
-    "driver_location_duration": {
-      "contains": "time",
-      "values": {
-        "med": 5.9769144999999995,
-        "p(90)": 14.401326600000015,
-        "p(95)": 21.581198499999978,
-        "p(99)": 55.481425210000005,
-        "max": 672.916087,
-        "avg": 11.469118031690144,
-        "min": 4.335187
-      },
-      "type": "trend"
-    },
-    "checks": {
-      "type": "rate",
-      "contains": "default",
-      "values": {
-        "rate": 1,
-        "passes": 10522,
-        "fails": 0
-      },
-      "thresholds": {
-        "rate>0.95": {
-          "ok": true
-        }
-      }
-    },
-    "http_req_blocked": {
-      "values": {
-        "min": 0.00157,
-        "med": 0.003889,
-        "p(90)": 0.0069732000000000014,
-        "p(95)": 0.008202599999999996,
-        "p(99)": 0.012739159999999916,
-        "max": 0.569993,
-        "avg": 0.00515832873146996
-      },
-      "type": "trend",
-      "contains": "time"
-    },
-    "photo_sync_time": {
-      "type": "trend",
-      "contains": "time",
-      "values": {
-        "p(95)": 523.8499999999999,
-        "p(99)": 539.6800000000001,
-        "max": 891,
-        "avg": 68.52464788732394,
-        "min": 4,
-        "med": 7,
-        "p(90)": 512
+        "min": 3,
+        "med": 6.5,
+        "p(90)": 258.70000000000005,
+        "p(95)": 260,
+        "p(99)": 264.34000000000003,
+        "max": 775,
+        "avg": 116.98591549295774
       },
       "thresholds": {
         "p(95)<5000": {
@@ -1020,49 +985,84 @@
         }
       }
     },
-    "group_duration": {
+    "users_me_duration": {
       "type": "trend",
       "contains": "time",
       "values": {
-        "p(95)": 1552.4902086499999,
-        "p(99)": 1802.3069699,
-        "max": 2781.320353,
-        "avg": 200.8733876532366,
-        "min": 2.517418,
-        "med": 61.233636000000004,
-        "p(90)": 590.0150617000002
+        "med": 2.526769,
+        "p(90)": 4.474809,
+        "p(95)": 5.501989,
+        "p(99)": 7.971582200000018,
+        "max": 15.269709,
+        "avg": 2.967938982378857,
+        "min": 1.743998
       }
     },
-    "driver_online_rate": {
+    "photos_uploaded": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 568,
+        "rate": 2.355504519165186
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 1.601074,
+        "avg": 0.06421874360135871,
+        "min": 0.018142,
+        "med": 0.0603355,
+        "p(90)": 0.089006,
+        "p(95)": 0.09767964999999997,
+        "p(99)": 0.12741175999999968
+      }
+    },
+    "checks": {
+      "thresholds": {
+        "rate>0.95": {
+          "ok": true
+        }
+      },
       "type": "rate",
       "contains": "default",
       "values": {
         "fails": 0,
         "rate": 1,
-        "passes": 284
-      },
-      "thresholds": {
-        "rate>0.95": {
-          "ok": true
-        }
+        "passes": 10502
       }
     },
-    "ride_complete_duration": {
-      "type": "trend",
+    "iteration_duration": {
       "contains": "time",
       "values": {
-        "med": 5.6967235,
-        "p(90)": 14.167880300000053,
-        "p(95)": 19.57687369999998,
-        "p(99)": 53.26723394000004,
-        "max": 665.661637,
-        "avg": 10.672642390845072,
-        "min": 3.706374
-      }
+        "max": 5954.554196,
+        "avg": 1863.6228088808828,
+        "min": 1175.233376,
+        "med": 1234.51366,
+        "p(90)": 2915.980991,
+        "p(95)": 2958.65948815,
+        "p(99)": 3694.4337505600006
+      },
+      "type": "trend"
+    },
+    "ride_assignment_time": {
+      "values": {
+        "avg": 9.253521126760564,
+        "min": 5,
+        "med": 7,
+        "p(90)": 12.700000000000017,
+        "p(95)": 17,
+        "p(99)": 59.19000000000011,
+        "max": 124
+      },
+      "thresholds": {
+        "p(95)<5000": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time"
     }
-  },
-  "setup_data": {
-    "riderId": "abfff5d9-55b6-4467-95e0-96280e6ec833",
-    "riderToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYmZmZjVkOS01NWI2LTQ0NjctOTVlMC05NjI4MGU2ZWM4MzMiLCJlbWFpbCI6InJpZGVyLnNldHVwLjE3OTM5NjM3OTAxMDcuNzIyNzgxQGs2LmZha2Vib2x0LmNvbSIsInJvbGUiOiJyaWRlciIsImlhdCI6MTc5Mzk2Mzc5MCwiZXhwIjoxNzk0NTY4NTkwfQ.aSzTfUdaXOeccqWCDYgaUrbyBus_iiWz7neIdcibPW4"
   }
 }

@@ -236,13 +236,14 @@ Ride and rider endpoints exist on their services (`POST /rides/request`, `GET /r
 - **Metrics:** every service exposes `/metrics` (prom-client). Grafana Alloy scrapes them plus the Kafka, Redis and Postgres exporters and remote-writes to Prometheus.
 - **Email metrics:** `emails_sent_total`, `emails_failed_total{reason}`, `emails_duplicate_skipped_total`, `email_send_duration_seconds`, `email_delivery_delay_seconds` (ride completed → receipt sent). Alerts: `RideReceiptsFailing`, `RideReceiptsSlow`.
 - **Business metrics:** `ride_matching_duration_seconds`, `matching_attempts/success/failed_total`, `driver_location_updates_total`, `driver_status_updates_total`, `ride_requests_total`, `socket_connections_active`, `notifications_sent_total`, `notifications_skipped_total`, `kafka_messages_produced/consumed/failed_total`.
+- **Dashboard:** *fake-bolt overview* (8 panels, see [Grafana dashboard](#grafana-dashboard)), provisioned from `grafana/`.
 - **Logs:** Winston writes JSON to `/logs/<service>.log`; Alloy ships them to Loki.
 - **Alerts:** `prometheus/alerts.yml` covers availability, p99 latency, error rate, matching too slow, stale driver locations, Redis memory and Postgres connections (no Alertmanager yet).
 
 | Tool | URL |
 |---|---|
 | Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3300 |
+| Grafana | http://localhost:3300 (dashboard *fake-bolt overview*) |
 | Loki | http://localhost:3100 |
 | Floci (S3, SES) | http://localhost:4566 (sent emails: `/_aws/ses`) |
 
@@ -301,7 +302,7 @@ Ride and driver-profile endpoints aren't behind the gateway yet, so the test cal
 
 ## Load test results
 
-First full run, 6 Nov 2026: about 4 minutes, up to 7 VUs (5 driver flows + 2 rider apps). **Result: PASSED, 15/15 thresholds.**
+Latest run, 6 Nov 2026 (the second full run; the first gave the same picture): about 4 minutes, up to 7 VUs (5 driver flows + 2 rider apps). **Result: PASSED, 15/15 thresholds.** Live graphs of this run are in [Grafana dashboard](#grafana-dashboard).
 
 📊 Full HTML report: [`k6_reports/fake-bolt.k6.html`](k6_reports/fake-bolt.k6.html). GitHub shows HTML as source, so download it or open it locally. Also: [`fake-bolt.k6.result.txt`](k6_reports/fake-bolt.k6.result.txt) (business summary) and [`fake-bolt.k6.summary.json`](k6_reports/fake-bolt.k6.summary.json) (raw).
 
@@ -318,15 +319,30 @@ First full run, 6 Nov 2026: about 4 minutes, up to 7 VUs (5 driver flows + 2 rid
 
 | Timing | avg | p95 | p99 |
 |---|---|---|---|
-| Ride assignment (request → driver notified) | 11 ms | **18 ms** | 70 ms |
-| Photo sync (confirm → allowed online, via Kafka) | 69 ms | 524 ms | 540 ms |
-| Driver BUSY after assignment | 98 ms | 260 ms | 272 ms |
-| Driver back to AVAILABLE after the ride | 120 ms | 260 ms | 270 ms |
-| Receipt emailed after completion | 280 ms | 519 ms | 523 ms |
-| All HTTP requests (8,837, 0 failed) | 16 ms | 69 ms | 89 ms |
-| Socket.io connect (284 sessions) | 0.6 ms | 1 ms | 1.9 ms |
+| Ride assignment (request → driver notified) | 9 ms | **17 ms** | 59 ms |
+| Photo sync (confirm → allowed online, via Kafka) | 52 ms | 513 ms | 543 ms |
+| Driver BUSY after assignment | 115 ms | 260 ms | 263 ms |
+| Driver back to AVAILABLE after the ride | 117 ms | 260 ms | 264 ms |
+| Receipt emailed after completion | 287 ms | 519 ms | 522 ms |
+| All HTTP requests (8,830, 0 failed) | 17 ms | 70 ms | 87 ms |
+| Socket.io connect (284 sessions) | 0.6 ms | 0.9 ms | 2.2 ms |
 
-Checks: **10,522 passed, 0 failed**. Things the run caught and that are now fixed: the gateway answering 401 on its public routes, Kafka refusing to start after a restart (ZooKeeper volumes), a missing build dependency in ride-service, the xk6 Go version, and the shape of Socket.io event payloads in k6.
+Checks: **10,502 passed, 0 failed**. Things the run caught and that are now fixed: the gateway answering 401 on its public routes, Kafka refusing to start after a restart (ZooKeeper volumes), a missing build dependency in ride-service, the xk6 Go version, and the shape of Socket.io event payloads in k6.
+
+## Grafana dashboard
+
+The **fake-bolt overview** dashboard is provisioned from the repo (`grafana/provisioning/` + `grafana/dashboards/fake-bolt-overview.json`), together with the Prometheus and Loki data sources, so it's there on every start at http://localhost:3300 (folder *fake-bolt*). Screenshots below are from the k6 run above.
+
+![fake-bolt overview dashboard](docs/grafana/dashboard.png)
+
+| | |
+|---|---|
+| ![Ride matching time](docs/grafana/ride-matching-time.png) **Ride matching time.** p50 stays around 3 ms; p95 starts near 40 ms while connections warm up and settles at about 5 ms. This is the atomic Lua claim (`GEOSEARCH` + `ZREM`). | ![Rides matched and receipts emailed](docs/grafana/rides-and-receipts.png) **Rides matched and receipts emailed.** The two lines track each other: every matched ride ends with a receipt through SES. "No driver in range" stays at 0. |
+| ![Kafka messages consumed](docs/grafana/kafka-messages-consumed.png) **Kafka messages consumed by topic.** `driver.assigned` and `ride.completed` are each read by two instrumented consumers, and `ride.status.updated` is published twice per ride (matched, in progress), so all three run at two messages per ride; `ride.requested` runs at half, only matching reads it. | ![HTTP requests per service](docs/grafana/http-requests-per-service.png) **HTTP requests by service.** The gateway carries most traffic as the load ramps up to 7 VUs; driver-service is next (status, location, profile). |
+| ![HTTP latency p95](docs/grafana/http-latency-p95.png) **HTTP latency p95 by service.** The gateway is highest (~90 ms) because it includes the downstream call, and registration hashes passwords with bcrypt. The services themselves stay around 10–40 ms. | ![Driver status changes](docs/grafana/driver-status-changes.png) **Driver status changes.** Every driver goes available → busy → available → offline, so `available` runs at twice the rate of `busy` and `offline`. |
+| ![Socket.io connections](docs/grafana/socket-connections.png) **Active Socket.io connections.** One per driver waiting for a ride, closed once the ride completes. | ![k6 virtual users](docs/grafana/k6-virtual-users.png) **k6 virtual users.** The load profile: ramps to 7 VUs, holds, ramps down. |
+
+To open it yourself: `docker compose up -d`, run k6, then visit http://localhost:3300 (admin / `GRAFANA_PASSWORD`). The screenshots were taken with Playwright + headless Chromium; for that run Grafana was started with `GRAFANA_ANONYMOUS=true` (read-only anonymous access, off by default).
 
 ## Running it
 
@@ -368,7 +384,7 @@ npx pnpm@10.34.8 run start:dev
 
 ## Next up
 
-1. Grafana dashboards and Alertmanager.
+1. Alertmanager, and a Loki logs panel on the dashboard.
 2. Route rides and riders through the gateway, with identity from the JWT and role checks.
 3. Accept / decline with a timeout, then **forward dispatch**: offer the next ride to a busy driver whose current ride ends near the pickup.
 4. No-driver path (retry with a wider radius, then `ride.matching.failed`), ride state machine, server-side fares.

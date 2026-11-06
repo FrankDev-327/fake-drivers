@@ -434,6 +434,8 @@ services:
   kafka-exporter:
     image: danielqsj/kafka-exporter:latest
     container_name: kafka-exporter
+    # starts before Kafka accepts connections and exits; retry instead of staying down
+    restart: on-failure
     command:
       - --kafka.server=kafka:9092
     depends_on:
@@ -472,9 +474,14 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: 'false'
+      # read-only anonymous access, off by default (GRAFANA_ANONYMOUS=true for headless screenshots)
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_ANONYMOUS:-false}
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      # data sources + dashboard provider, and the dashboard JSON files they load
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
       - loki

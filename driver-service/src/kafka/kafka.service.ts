@@ -42,7 +42,12 @@ export class KafkaProducer implements OnModuleInit, OnModuleDestroy {
     try {
       await this.producer.send({
         topic,
-        messages: [{ value: JSON.stringify(message) }],
+        messages: [
+          {
+            key: message["driverId"]?.toString(),
+            value: JSON.stringify(message),
+          },
+        ],
       });
 
       this.metricsService.kafkaMessagesProducedTotal.inc({ topic });

@@ -70,13 +70,13 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 <main>
 
 <h1>fake-bolt: what's done, what's missing</h1>
-<p class="lead">Gap analysis of the <code>fake-drivers</code> repo as of 6 Nov 2026 (includes <code>/health</code> controllers, Kafka key fix, profile photos on Floci S3, and the pnpm Dockerfile rework). Built from reading every service's source and running <code>tsc --noEmit</code> on each one.</p>
+<p class="lead">Gap analysis of the <code>fake-drivers</code> repo as of 6 Nov 2026 (includes <code>/health</code> controllers, Kafka key fix, profile photos on Floci S3, the pnpm Dockerfile rework, notification + matching fixes and the driver busy lifecycle). Built from reading every service's source and running <code>tsc --noEmit</code> on each one.</p>
 
 <div class="cards">
   <div class="card"><div class="n">8</div><div class="l">NestJS services in compose</div></div>
-  <div class="card ok"><div class="n">6 / 8</div><div class="l">services whose src type-checks (all but matching and notification)</div></div>
+  <div class="card ok"><div class="n">8 / 8</div><div class="l">services whose src type-checks</div></div>
   <div class="card ok"><div class="n">8 / 8</div><div class="l">services with the <code>/health</code> endpoint compose waits on</div></div>
-  <div class="card bad"><div class="n">6</div><div class="l">services listening on a different port than compose expects</div></div>
+  <div class="card bad"><div class="n">4</div><div class="l">services listening on a different port than compose expects (driver, rider, ride, payment)</div></div>
   <div class="card warn"><div class="n">5 / 11</div><div class="l">Kafka topics with both a producer and a consumer</div></div>
   <div class="card bad"><div class="n">0</div><div class="l">real tests (only Nest boilerplate specs)</div></div>
 </div>
@@ -107,9 +107,15 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
     <li>QueryRunner migrations with indexes for auth, driver, rider, ride</li>
   </ul></div>
   <div class="card"><h3>Matching + Notification</h3><ul>
-    <li>Matching flow: consume <code>ride.requested</code>, nearest driver, remove from pool, publish <code>driver.assigned</code></li>
-    <li>Socket.io gateway with Redis adapter and per-user rooms</li>
-    <li>Handlers for assigned, status, completed, payment events</li>
+    <li>Matching claims the nearest driver atomically: one Lua script runs <code>GEOSEARCH</code> + <code>ZREM</code>, so two rides can't get the same driver</li>
+    <li>Matching + notification metrics exported on <code>/metrics</code>, incl. <code>ride_matching_duration_seconds</code> for the existing alert</li>
+    <li>Socket.io Redis adapter via a <code>RedisIoAdapter</code>, per-user rooms, connection gauge that can't go negative</li>
+    <li>Consumers start after handlers register; notification skips + counts events with no recipient</li>
+  </ul></div>
+  <div class="card"><h3>Driver busy lifecycle</h3><ul>
+    <li><code>driver.assigned</code> → BUSY, so location pings no longer re-add a driving driver to the pool</li>
+    <li><code>ride.completed</code> / cancelled → back to AVAILABLE at the last position (OFFLINE if the photo was removed)</li>
+    <li>BUSY is system-owned: manual <code>busy</code> → 422, any manual change mid-ride → 409</li>
   </ul></div>
   <div class="card"><h3>Profile photos (Floci S3)</h3><ul>
     <li>Floci in compose, bucket <code>fake-bolt-profile-photos</code> created by an idempotent hook</li>
@@ -187,24 +193,24 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 <td class="c"><span class="cell ok">✓</span></td>
 <td class="c"><span class="cell bad">✗</span></td></tr>
 <tr><td>matching-service</td>
-<td class="c"><span class="cell warn">~</span><span class="note">Redis + Metrics are empty classes</span></td>
-<td class="c"><span class="cell bad">✗</span><span class="note">empty Metrics/Redis, image build fails</span></td>
-<td class="c"><span class="cell bad">✗</span><span class="note">3000 vs 3005</span></td>
+<td class="c"><span class="cell warn">~</span><span class="note">atomic claim; no retry when nobody's in range</span></td>
+<td class="c"><span class="cell ok">✓</span></td>
+<td class="c"><span class="cell ok">✓</span><span class="note">env PORT</span></td>
 <td class="c"><span class="cell ok">✓</span><span class="note">returns OK</span></td>
-<td class="c"><span class="cell bad">✗</span></td>
+<td class="c"><span class="cell ok">✓</span></td>
 <td class="c"><span class="cell na">n/a</span></td>
-<td class="c"><span class="cell bad">✗</span></td>
-<td class="c"><span class="cell warn">~</span><span class="note">wired in wrong module</span></td>
+<td class="c"><span class="cell ok">✓</span></td>
+<td class="c"><span class="cell ok">✓</span><span class="note">producer + consumer</span></td>
 <td class="c"><span class="cell bad">✗</span></td></tr>
 <tr><td>notification-service</td>
-<td class="c"><span class="cell warn">~</span></td>
-<td class="c"><span class="cell bad">✗</span><span class="note">KafkaModule import, image build fails</span></td>
-<td class="c"><span class="cell bad">✗</span><span class="note">3005 vs 3007</span></td>
+<td class="c"><span class="cell warn">~</span><span class="note">sockets trust <code>?userId</code></span></td>
+<td class="c"><span class="cell ok">✓</span></td>
+<td class="c"><span class="cell ok">✓</span><span class="note">env PORT</span></td>
 <td class="c"><span class="cell ok">✓</span><span class="note">returns OK</span></td>
-<td class="c"><span class="cell bad">✗</span><span class="note">empty controller</span></td>
+<td class="c"><span class="cell ok">✓</span></td>
 <td class="c"><span class="cell na">n/a</span></td>
-<td class="c"><span class="cell bad">✗</span></td>
-<td class="c"><span class="cell warn">~</span><span class="note">providers not wired</span></td>
+<td class="c"><span class="cell ok">✓</span></td>
+<td class="c"><span class="cell ok">✓</span><span class="note">consumer</span></td>
 <td class="c"><span class="cell bad">✗</span></td></tr>
 <tr><td>payment-service</td>
 <td class="c"><span class="cell bad">✗</span><span class="note">Nest scaffold</span></td>
@@ -228,9 +234,9 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 <thead><tr><th>Topic</th><th>Producer</th><th>Consumers</th><th>State</th><th>Gap</th></tr></thead>
 <tbody>
 <tr><td><code>ride.requested</code></td><td>ride</td><td>matching</td><td><span class="pill ok">connected</span></td><td>Key by <code>rideId</code> for ordering (driver topics are now keyed by <code>driverId</code>)</td></tr>
-<tr><td><code>driver.assigned</code></td><td>matching</td><td>ride, notification</td><td><span class="pill warn">partial</span></td><td>driver-service doesn't consume it, so DB status stays <code>available</code> and the next location ping re-adds the driver to the GEO pool</td></tr>
-<tr><td><code>ride.status.updated</code></td><td>ride</td><td>notification</td><td><span class="pill warn">partial</span></td><td>The MATCHED event from <code>handleDriverAssigned</code> has no <code>riderId</code>, so the rider is never notified</td></tr>
-<tr><td><code>ride.completed</code></td><td>ride</td><td>notification</td><td><span class="pill warn">partial</span></td><td>payment-service should consume it and charge</td></tr>
+<tr><td><code>driver.assigned</code></td><td>matching</td><td>ride, notification, driver</td><td><span class="pill ok">connected</span></td><td>driver-service sets the driver BUSY. Still no accept/decline step</td></tr>
+<tr><td><code>ride.status.updated</code></td><td>ride</td><td>notification, driver (cancelled)</td><td><span class="pill warn">partial</span></td><td>The MATCHED event from <code>handleDriverAssigned</code> has no <code>riderId</code>, so the rider is never notified (now counted in <code>notifications_skipped_total</code>)</td></tr>
+<tr><td><code>ride.completed</code></td><td>ride</td><td>notification, driver</td><td><span class="pill warn">partial</span></td><td>Frees the driver. payment-service should also consume it and charge</td></tr>
 <tr><td><code>driver.status.updated</code></td><td>driver</td><td>none</td><td><span class="pill bad">dead end</span></td><td>No consumer</td></tr>
 <tr><td><code>driver.location.updated</code></td><td>driver</td><td>none</td><td><span class="pill bad">dead end</span></td><td>No consumer. Could feed live tracking to the rider via notification</td></tr>
 <tr><td><code>driver.declined</code></td><td>none</td><td>matching</td><td><span class="pill bad">dead end</span></td><td>No accept/decline endpoint. Re-match also doesn't exclude the declining driver</td></tr>
@@ -265,17 +271,18 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 <h2>Suggested order of work</h2>
 <div class="phase">
   <div class="card"><h3>1. Make it boot</h3><div class="t">all P0 · ~1–2 days</div><ol>
-    <li>Fix compile errors in <s>auth, driver</s> rider, matching, notification</li>
-    <li><code>app.listen(process.env.PORT)</code> everywhere</li>
+    <li><s>Fix compile errors in all 8 services</s></li>
+    <li><code>app.listen(process.env.PORT)</code>: <s>gateway, auth, matching, notification</s>; driver, rider, ride, payment left</li>
     <li><s><code>/health</code> returning OK in all 8 services</s></li>
     <li><s>Dockerfiles: pnpm, <code>dist/src/main.js</code>, <code>.dockerignore</code>, non-root</s></li>
     <li><code>ConfigModule.forRoot</code> + <code>TypeOrmModule.forRoot</code> using <code>DATABASE_URL</code></li>
     <li>Create all DBs via a Postgres init script; <code>migrationsRun: true</code>; snake_case naming</li>
-    <li>Fix Nest module wiring (exports/imports): <s>driver</s> done; ride, rider, matching, notification left</li>
+    <li>Fix Nest module wiring: <s>driver, matching, notification</s> done; ride and rider left</li>
   </ol></div>
   <div class="card"><h3>2. Close the ride loop</h3><div class="t">P1 · ~3–4 days</div><ol>
-    <li>Atomic driver claim in matching (Lua or check <code>ZREM</code> result)</li>
-    <li>driver-service consumes <code>driver.assigned</code> → BUSY; back to AVAILABLE on complete/cancel</li>
+    <li><s>Atomic driver claim in matching (Lua)</s></li>
+    <li><s>driver-service consumes <code>driver.assigned</code> → BUSY; back to AVAILABLE on complete/cancel</s></li>
+    <li>Accept/decline + timeout, then forward dispatch</li>
     <li>Ride state machine + accept/decline/cancel endpoints</li>
     <li>No-driver path: retry with wider radius, then <code>ride.matching.failed</code></li>
     <li>Gateway modules for riders, rides, payments; use <code>x-user-id</code> (done for <code>/users/me</code>) on drivers and rides too</li>
@@ -305,27 +312,20 @@ footer{margin-top:48px;color:var(--muted);font-size:12.5px}
 const F = [
  // P0 boot blockers
   ["P2","Build","rider-service entity has a stray <code>k;</code> after <code>email: string;</code>. It compiles (untyped property), but it's a junk field to delete.","rider-service/src/entities/rider.entity.ts:24","S"],
-  ["P0","Build","matching-service <code>RedisService</code> and <code>MetricsService</code> are empty classes; <code>findNearestDriver</code>, <code>removeDriverFromAvailable</code> and 6 metrics don't exist. ioredis is installed but unused.","matching-service/src/redis/redis.service.ts","M"],
- ["P0","Build","notification-service <code>KafkaModule</code> imports <code>KafkaService</code> from <code>kafka.consumer</code>, which only exports <code>KafkaConsumer</code>.","notification-service/src/kafka/kafka.module.ts:2","S"],
- ["P0","Compose","Hard-coded ports don't match compose: driver 3000≠3002, rider 3004≠3003, ride 3003≠3004, matching 3000≠3005, notification 3005≠3007, payment 3000≠3006. Use <code>process.env.PORT</code>.","*/src/main.ts","S"],
- ["P0","Compose","All 8 services expose <code>/health</code> (returns OK), but six still listen on the wrong port in <code>main.ts</code>, so compose checks a port nothing listens on and those services stay unhealthy. auth also keeps an old <code>/healthcheck</code> that pings <code>localhost:3000</code>; it can be deleted.","*/src/main.ts","S"],
+ ["P0","Compose","Four services still listen on a hard-coded port that doesn't match compose: driver 3000≠3002, rider 3004≠3003, ride 3003≠3004, payment 3000≠3006. Their <code>/health</code> checks hit a port nothing listens on, so they stay unhealthy. Use <code>process.env.PORT</code> like the others.","*/src/main.ts","S"],
  ["P0","Database","<code>orm.ts</code> reads <code>POSTGRES_HOST/PORT/DB</code>, but compose only passes <code>DATABASE_URL</code>. No service can connect.","*/orm.ts","S"],
  ["P0","Database","Only <code>auth_db</code> exists at startup. Migrations try <code>createDatabase</code> while already connected to a DB that doesn't exist yet. Use a <code>docker-entrypoint-initdb.d</code> script for driver_db, rider_db, ride_db, payment_db. Auth migration also creates <code>user_db</code>, not <code>auth_db</code>.","auth-service/src/migrations/","S"],
  ["P0","Database","Migrations are never run (<code>migrationsRun</code> not set, no migration step before <code>node dist/src/main.js</code>). The path <code>dist/src/migrations</code> in <code>orm.ts</code> is correct (verified with a build).","*/orm.ts","S"],
  ["P0","Database","Entities use camelCase (<code>userId</code>, <code>createdAt</code>) but migrations create snake_case columns (<code>user_id</code>, <code>created_at</code>). Add <code>SnakeNamingStrategy</code> or <code>@Column({ name })</code>.","*/entities/*.entity.ts","S"],
-  ["P0","Wiring","ride, rider, matching and notification inject <code>ConfigService</code> without <code>ConfigModule.forRoot</code>: DI error at boot.","*/src/app.module.ts","S"],
- ["P0","Wiring","notification: NotificationModule doesn't provide KafkaConsumer/Gateway/Metrics; AppModule registers RedisService and NotificationGateway a second time (two instances, two Redis connections).","notification-service/src/app.module.ts","S"],
- ["P0","Wiring","matching: <code>KafkaModule</code> provides an empty <code>KafkaService</code>; MetricsModule/RedisModule don't export their services.","matching-service/src/kafka/kafka.module.ts","S"],
+  ["P0","Wiring","ride and rider inject <code>ConfigService</code> without <code>ConfigModule.forRoot</code>: DI error at boot.","*/src/app.module.ts","S"],
  ["P0","Seed","Seed reads <code>{ token, user }</code> from register, but auth returns only <code>{ token }</code>. <code>user.id</code> throws, so every driver and rider fails to seed.","seed/seed.js:69","S"],
  ["P2","Compose","k6 mounts <code>./k6</code>, which doesn't exist yet (the Dockerfile is now <code>docker/Dockerfile.k6</code>, matching compose).","docker-compose.yml","S"],
 
  // P1 correctness / security
- ["P1","Matching","Race: <code>GEOSEARCH</code> then <code>ZREM</code> is not atomic. Two matching instances (or two quick rides) can grab the same driver. Do it in a Lua script, or only proceed when <code>ZREM</code> returns 1.","matching-service/src/matching/matching.service.ts","M"],
- ["P1","Matching","After assignment the driver's DB status stays <code>available</code>, so the next <code>PATCH /location</code> puts them back in the GEO pool. Double assignment. driver-service should consume <code>driver.assigned</code> and set BUSY.","driver-service/src/drivers/drivers.service.ts:123","M"],
  ["P1","Matching","No driver found: just logs and returns. Ride stuck in <code>requested</code>, rider not told. Needs retry with growing radius, then a failed event.","matching-service/src/matching/matching.service.ts","M"],
  ["P1","Matching","<code>handleDriverDeclined</code> says it excludes the declined driver but doesn't, and nothing ever publishes <code>driver.declined</code>.","matching-service/src/matching/matching.service.ts","M"],
  ["P1","Kafka","Dual write: DB save then Kafka publish. If publish fails, the ride exists but matching never hears about it (and the API returns 500 for a ride that was created). Transactional outbox fixes it.","ride-service/src/ride/ride.service.ts","L"],
- ["P1","Kafka","ride, matching and notification consumers catch and log errors, then the offset is committed, so failed messages are lost. They also start consuming in <code>onModuleInit</code>, before handlers are registered. driver-service's new consumer already fixes both (rethrows, starts in <code>onApplicationBootstrap</code>); copy it and add a dead-letter topic.","*/kafka/kafka.consumer.ts","M"],
+ ["P1","Kafka","ride-service's consumer still catches and logs errors, then commits the offset (lost messages), and starts in <code>onModuleInit</code> before handlers register. driver and matching already rethrow and start in <code>onApplicationBootstrap</code>; copy that, then add a dead-letter topic.","ride-service/src/kafka/kafka.consumer.ts","M"],
  ["P1","Ride","No state machine: any status can go to any other (completed → requested). Validate transitions.","ride-service/src/ride/ride.service.ts","S"],
  ["P1","Ride","Fare comes from the client in the status update body. Should be calculated server-side (distance × rate + base). <code>dto.fare &amp;&amp;</code> also drops a fare of 0.","ride-service/src/ride/ride.service.ts","M"],
  ["P1","Ride","MATCHED event published from <code>handleDriverAssigned</code> lacks <code>riderId</code>, so notification emits to room <code>undefined</code>.","ride-service/src/ride/ride.service.ts","S"],
@@ -340,15 +340,15 @@ const F = [
  // P2 missing features
  ["P2","Gateway","Gateway only routes auth, drivers and users/me. No rider, ride, payment modules (they're commented out).","gateway/src/app.module.ts","M"],
  ["P2","Payment","payment-service is the Nest scaffold. Needs: payment entity + migration, consume <code>ride.completed</code>, Stripe PaymentIntent (test mode), webhook with signature check, idempotency key per ride, publish <code>payment.completed/failed</code>.","payment-service/","L"],
- ["P2","Ride","No accept / decline / start / complete / cancel endpoints for drivers; no cancel for riders.","ride-service/src/ride/ride.controller.ts","M"],
+ ["P2","Ride","No accept / decline / start / complete / cancel endpoints for drivers; no cancel for riders. Accept/decline with a timeout is also the prerequisite for forward dispatch (below).","ride-service/src/ride/ride.controller.ts","M"],
  ["P2","Driver","<code>driver.location.updated</code> has no consumer. Stream it to the matched rider for live tracking.","driver-service","M"],
  ["P2","Driver","Location writes hit Postgres on every ping. At real frequency (every 3–5s) keep live position only in Redis and persist periodically.","driver-service/src/drivers/drivers.service.ts","M"],
  ["P2","Driver","Stale drivers never leave the GEO set if they stop sending pings. Add a heartbeat key with TTL and filter or sweep.","driver-service/src/redis/redis.service.ts","M"],
- ["P2","Observability","Metrics middleware defined in driver and ride but never applied (<code>configure()</code> missing). Auth increments HTTP counters by hand inside services instead.","driver-service/src/app.module.ts","S"],
+ ["P2","Observability","Metrics middleware is defined in driver and ride but never applied (<code>configure()</code> missing); matching and notification now apply it. Auth increments HTTP counters by hand inside services instead.","driver-service/src/app.module.ts","S"],
  ["P2","Observability","<code>driver_id</code> as a Prometheus label creates one series per driver. Drop the label.","driver-service/src/metrics/metrics.service.ts","S"],
- ["P2","Observability","Alerts reference metrics nobody exports: <code>ride_matching_duration_seconds</code>, <code>stripe_webhook_verification_failures_total</code>; kafka-exporter names lag <code>kafka_consumergroup_lag</code>; <code>redis_memory_max_bytes</code> is 0 without maxmemory.","prometheus/alerts.yml","S"],
+ ["P2","Observability","Alerts reference metrics nobody exports: <code>stripe_webhook_verification_failures_total</code>; kafka-exporter names lag <code>kafka_consumergroup_lag</code>; <code>redis_memory_max_bytes</code> is 0 without maxmemory. (<code>ride_matching_duration_seconds</code> is exported now.)","prometheus/alerts.yml","S"],
  ["P2","Observability","No Alertmanager, so alerts fire nowhere. Grafana mounts <code>./grafana/dashboards</code> which doesn't exist; no datasource provisioning.","docker-compose.yml","M"],
- ["P2","Observability","Logger copy-paste: gateway, matching, notification write to <code>auth-service.log</code>; ride, rider, matching to <code>driver-service.log</code>. Loki can't tell services apart. Add a <code>service</code> label.","*/logger.ts","S"],
+ ["P2","Observability","Logger copy-paste: gateway writes to <code>auth-service.log</code>, ride and rider to <code>driver-service.log</code> (matching and notification are fixed). Loki can't tell services apart. Add a <code>service</code> label.","*/logger.ts","S"],
  ["P2","Observability","No correlation/trace ID across HTTP + Kafka. Add OpenTelemetry (Tempo) or at least an <code>x-request-id</code> propagated in Kafka headers.","all services","M"],
  ["P2","Testing","No real tests anywhere. Start with matching (nearest driver, race), ride state machine, auth. Then e2e with Testcontainers (Postgres, Redis, Kafka).","*/test/","L"],
  ["P2","Testing","No k6 scripts folder. Scenario: login → request ride → wait for <code>driver_assigned</code> over Socket.io; measure p99 matching time.","k6/","M"],
@@ -360,7 +360,9 @@ const F = [
  ["P3","Photos","Photo URLs only load because Floci doesn't enforce S3 auth. On real AWS you'd need a public-read policy or CloudFront (or presigned GETs), plus bucket CORS for browser uploads.","auth-service/src/entities/user.entity.ts","M"],
 
  ["P1","Docker","None of the reworked images has been built yet. First <code>docker compose build</code> should confirm corepack fetches pnpm 10.34.8 and each frozen install passes inside Alpine.","*/Dockerfile","S"],
- ["P2","Docker","matching and notification images fail at <code>pnpm run build</code> until their compile errors are fixed.","matching-service, notification-service","M"],
+
+ ["P2","Matching","Forward dispatch (not built): offer the next ride to a BUSY driver whose current ride ends near the pickup. Needs accept/decline first, a <code>drivers:finishing</code> GEO set at ride destinations, remaining-distance tracking (e.g. &lt;1.5 km left) and one queued ride per driver.","matching-service, driver-service","L"],
+ ["P3","Matching","The claim Lua script hasn't run against a real Redis yet. Also: if the claim succeeds but publishing <code>driver.assigned</code> fails, that driver is out of the pool (but still AVAILABLE in the DB) until their next location ping.","matching-service/src/redis/redis.service.ts","S"],
 
  // P3 polish
  ["P3","Docs","Every README is the Nest boilerplate. Add a root README with Mermaid architecture, event-flow sequence diagram, and how to run.","README.md","M"],
@@ -368,7 +370,7 @@ const F = [
  ["P3","Repo","Shared code (logger, metrics, kafka producer/consumer, health) is copy-pasted 8×. Move to an Nx/pnpm workspace <code>libs/common</code>.","all services","L"],
  ["P3","DevOps","No CI. GitHub Actions: install, lint, <code>tsc --noEmit</code>, tests per service.",".github/workflows","M"],
  ["P3","DevOps","<code>:latest</code> images for exporters, alloy, floci and the xk6 builder + socket.io extension; pin versions. Consider Kafka KRaft mode instead of ZooKeeper.","docker-compose.yml","S"],
- ["P3","DevOps","Graceful shutdown: call <code>app.enableShutdownHooks()</code> so Kafka consumers leave the group cleanly.","*/src/main.ts","S"],
+ ["P3","DevOps","Graceful shutdown: <code>app.enableShutdownHooks()</code> is on in matching and notification; add it to the rest so Kafka consumers leave the group cleanly.","*/src/main.ts","S"],
  ["P3","Config","<code>env.example</code> has no per-service vars; services have their own <code>.env</code> files that compose doesn't use. Validate env with a Joi/zod schema at boot.","env.example","S"],
  ["P3","Feature","Senior extras worth showing: surge pricing per geohash cell, ETA via distance, driver ratings, ride history pagination, API docs with Swagger.","—","L"],
 ];

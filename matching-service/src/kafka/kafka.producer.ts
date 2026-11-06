@@ -6,51 +6,35 @@ import logger from '../../logger';
 
 @Injectable()
 export class KafkaProducer implements OnModuleInit, OnModuleDestroy {
-    private readonly kafka: Kafka;
-    private readonly producer: Producer;
+  private readonly producer: Producer;
 
-    constructor(
-        private readonly config: ConfigService,
-        private readonly metricsService: MetricsService,
-    ) {
-        this.kafka = new Kafka({
-            brokers: [this.config.get<string>('KAFKA_BROKER')],
-            clientId: 'matching-service-producer',
-        });
-        this.producer = this.kafka.producer();
-    }
+  constructor(
+    config: ConfigService,
+    private readonly metricsService: MetricsService,
+  ) {
+    const kafka = new Kafka({
+      brokers: [config.getOrThrow<string>('KAFKA_BROKER')],
+      clientId: 'matching-service-producer',
+    });
+    this.producer = kafka.producer();
+  }
 
-    async onModuleInit() {
-        try {
-            await this.producer.connect();
-            logger.info('Kafka producer connected');
-        } catch (error) {
-            logger.error('Failed to connect Kafka producer', {
-                error: (error as Error).message,
-            });
-            throw error;
-        }
-    }
+  async onModuleInit() {
+    await this.producer.connect();
+    logger.info('Kafka producer connected');
+  }
 
-    async onModuleDestroy() {
-        await this.producer.disconnect();
-        logger.info('Kafka producer disconnected');
-    }
+  async onModuleDestroy() {
+    await this.producer.disconnect();
+  }
 
-    async publish(topic: string, message: object): Promise<void> {
-        try {
-            await this.producer.send({
-                topic,
-                messages: [{ value: JSON.stringify(message) }],
-            });
-            this.metricsService.kafkaMessagesProducedTotal.inc({ topic });
-            logger.info('Kafka message published', { topic });
-        } catch (error) {
-            logger.error('Failed to publish Kafka message', {
-                error: (error as Error).message,
-                topic,
-            });
-            throw error;
-        }
-    }
+  async publish(topic: string, message: object): Promise<void> {
+    await this.producer.send({
+      topic,
+      // key by ride, so every event of one ride lands on the same partition in order
+      messages: [{ key: message['rideId']?.toString(), value: JSON.stringify(message) }],
+    });
+    this.metricsService.kafkaMessagesProducedTotal.inc({ topic });
+    logger.info('Kafka message published', { topic });
+  }
 }

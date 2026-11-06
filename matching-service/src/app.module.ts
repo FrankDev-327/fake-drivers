@@ -1,14 +1,17 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health/health.controller';
 import { MatchingModule } from './matching/matching.module';
 import { MetricsModule } from './metrics/metrics.module';
-import { KafkaModule } from './kafka/kafka.module';
-import { RedisModule } from './redis/redis.module';
-
+import { MetricsMiddleware } from './metrics/metrics.middleware';
 
 @Module({
-  imports: [MatchingModule, MetricsModule, KafkaModule, RedisModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), MetricsModule, MatchingModule],
   controllers: [HealthController],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(MetricsMiddleware).forRoutes('*');
+  }
+}

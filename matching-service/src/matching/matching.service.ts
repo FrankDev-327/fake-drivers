@@ -47,7 +47,8 @@ export class MatchingService implements OnModuleInit {
 
       logger.info('Matching ride with nearest driver', { rideId: payload.rideId });
 
-      const driverId = await this.redisService.findNearestDriver(
+      // finds the nearest available driver and removes them from the pool in one atomic step
+      const driverId = await this.redisService.claimNearestDriver(
         payload.pickupLat,
         payload.pickupLng,
         this.searchRadiusKm,
@@ -61,9 +62,6 @@ export class MatchingService implements OnModuleInit {
         });
         return;
       }
-
-      // remove driver from available pool immediately to prevent double assignment
-      await this.redisService.removeDriverFromAvailable(driverId);
 
       await this.kafkaProducer.publish(TOPICS.DRIVER_ASSIGNED, {
         rideId: payload.rideId,

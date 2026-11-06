@@ -1,15 +1,17 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health/health.controller';
 import { MetricsModule } from './metrics/metrics.module';
-import { RedisService } from './redis/redis.service';
-import { RedisModule } from './redis/redis.module';
-import { NotificationGateway } from './notification/notification.gateway';
+import { MetricsMiddleware } from './metrics/metrics.middleware';
 import { NotificationModule } from './notification/notification.module';
-import { KafkaModule } from './kafka/kafka.module';
 
 @Module({
-  imports: [MetricsModule, RedisModule, NotificationModule, KafkaModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), MetricsModule, NotificationModule],
   controllers: [HealthController],
-  providers: [RedisService, NotificationGateway],
+  providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(MetricsMiddleware).forRoutes('*');
+  }
+}

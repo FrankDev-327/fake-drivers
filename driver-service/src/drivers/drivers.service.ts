@@ -23,7 +23,13 @@ const TOPICS = {
   STATUS_UPDATED: "driver.status.updated",
   LOCATION_UPDATED: "driver.location.updated",
   USER_PHOTO_UPDATED: "user.photo.updated",
+  DRIVER_ASSIGNED: "driver.assigned",
+  RIDE_COMPLETED: "ride.completed",
+  RIDE_STATUS_UPDATED: "ride.status.updated",
 };
+
+type DriverAssignedEvent = { rideId: string; driverId: string };
+type RideFinishedEvent = { rideId: string; driverId: string | null; status: string };
 
 type UserPhotoUpdatedEvent = {
   userId: string;
@@ -46,6 +52,17 @@ export class DriverService implements OnModuleInit {
     this.kafkaConsumer.registerHandler(TOPICS.USER_PHOTO_UPDATED, (payload) =>
       this.handleUserPhotoUpdated(payload),
     );
+    this.kafkaConsumer.registerHandler(TOPICS.DRIVER_ASSIGNED, (payload) =>
+      this.handleDriverAssigned(payload),
+    );
+    this.kafkaConsumer.registerHandler(TOPICS.RIDE_COMPLETED, (payload) =>
+      this.handleRideFinished(payload),
+    );
+    this.kafkaConsumer.registerHandler(TOPICS.RIDE_STATUS_UPDATED, (payload) => {
+      // only cancellations free the driver; matched / in_progress updates are ignored here
+      if (payload.status !== "cancelled") return Promise.resolve();
+      return this.handleRideFinished(payload);
+    });
   }
 
   async createDriver(dto: CreateDriverDto): Promise<DriverEntity> {
@@ -95,6 +112,18 @@ export class DriverService implements OnModuleInit {
   async updateStatus(id: string, dto: UpdateStatusDto): Promise<DriverEntity> {
     try {
       const driver = await this.getDriver(id);
+
+      // busy is owned by the ride lifecycle: set on driver.assigned, cleared on ride end.
+      // a driver can't set it by hand, and can't leave it mid-ride (that would put a
+      // driver who is still driving back into the matching pool)
+      if (dto.status === DriverStatus.BUSY) {
+        throw new UnprocessableEntityException(
+          "Busy is set automatically when a ride is assigned",
+        );
+      }
+      if (driver.status === DriverStatus.BUSY) {
+        throw new ConflictException("Finish the current ride before changing status");
+      }
 
       // no photo, no going online: the driver never enters the GEO pool,
       // so matching can't assign them a ride and they can't start one
@@ -196,22 +225,60 @@ export class DriverService implements OnModuleInit {
     await this.driverRepository.update(driver.id, { hasPhoto: event.hasPhoto });
 
     // photo removed while online: take the driver offline and out of the matching pool.
-    // a busy driver keeps the current ride but can't go online again afterwards
+    // a busy driver keeps the current ride and goes offline when it ends (see handleRideFinished)
     if (!event.hasPhoto && driver.status === DriverStatus.AVAILABLE) {
-      await this.driverRepository.update(driver.id, { status: DriverStatus.OFFLINE });
-      await this.redisService.removeDriverFromGeo(driver.id);
-      await this.kafkaProducer.publish(TOPICS.STATUS_UPDATED, {
-        driverId: driver.id,
-        status: DriverStatus.OFFLINE,
-        reason: "profile_photo_removed",
-        timestamp: new Date().toISOString(),
-      });
-      this.metricsService.driverStatusUpdatesTotal.inc({ status: DriverStatus.OFFLINE });
+      await this.setStatusFromSystem(driver, DriverStatus.OFFLINE, "profile_photo_removed");
     }
 
     logger.info("Driver photo flag synced", {
       driverId: driver.id,
       hasPhoto: event.hasPhoto,
     });
+  }
+
+  // matching already removed the driver from the GEO pool; marking them busy in the DB is what
+  // stops updateLocation from adding them back while they're driving
+  private async handleDriverAssigned(event: DriverAssignedEvent): Promise<void> {
+    const driver = await this.driverRepository.findOne({ where: { id: event.driverId } });
+    if (!driver) {
+      logger.warn("driver.assigned for an unknown driver", event);
+      return;
+    }
+    if (driver.status === DriverStatus.BUSY) return; // redelivered event
+
+    await this.setStatusFromSystem(driver, DriverStatus.BUSY, "ride_assigned", event.rideId);
+  }
+
+  // ride completed or cancelled: the driver goes back to the pool at their last known position,
+  // unless their photo was removed during the ride, then they go offline
+  private async handleRideFinished(event: RideFinishedEvent): Promise<void> {
+    if (!event.driverId) return; // cancelled before a driver was assigned
+
+    const driver = await this.driverRepository.findOne({ where: { id: event.driverId } });
+    if (!driver || driver.status !== DriverStatus.BUSY) return; // unknown or already released
+
+    const next = driver.hasPhoto ? DriverStatus.AVAILABLE : DriverStatus.OFFLINE;
+    const reason = event.status === "cancelled" ? "ride_cancelled" : "ride_completed";
+    await this.setStatusFromSystem(driver, next, reason, event.rideId);
+  }
+
+  // one place for status changes the system makes (not the driver): DB, GEO pool, event, metric
+  private async setStatusFromSystem(
+    driver: DriverEntity,
+    status: DriverStatus,
+    reason: string,
+    rideId?: string,
+  ): Promise<void> {
+    await this.driverRepository.update(driver.id, { status });
+    await this.redisService.handleDriverStatusChange(driver.id, status, driver.lat, driver.lng);
+    await this.kafkaProducer.publish(TOPICS.STATUS_UPDATED, {
+      driverId: driver.id,
+      status,
+      reason,
+      ...(rideId && { rideId }),
+      timestamp: new Date().toISOString(),
+    });
+    this.metricsService.driverStatusUpdatesTotal.inc({ status });
+    logger.info("Driver status changed by the system", { driverId: driver.id, status, reason });
   }
 }

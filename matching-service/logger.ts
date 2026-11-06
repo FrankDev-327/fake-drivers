@@ -6,7 +6,7 @@ const logger = createLogger({
   transports: [
     new transports.Console(),
     new transports.File({
-      filename: path.join("/logs", "driver-service.log"),
+      filename: path.join("/logs", "matching-service.log"),
     }),
   ],
 });

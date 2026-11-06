@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MatchingService } from './matching.service';
-import { RedisService } from '../redis/redis.service';
-import { KafkaProducer } from '../kafka/kafka.producer';
-import { KafkaConsumer } from '../kafka/kafka.consumer';
+import { RedisModule } from '../redis/redis.module';
+import { KafkaModule } from '../kafka/kafka.module';
 import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  imports: [MetricsModule],
-  providers: [MatchingService, RedisService, KafkaProducer, KafkaConsumer],
+  imports: [RedisModule, KafkaModule, MetricsModule],
+  providers: [MatchingService],
 })
-export class MatchingModule { }
+export class MatchingModule {}

@@ -1,73 +1,59 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Kafka, Consumer } from 'kafkajs';
+import { Consumer, Kafka } from 'kafkajs';
 import { MetricsService } from '../metrics/metrics.service';
 import logger from '../../logger';
 
+type Handler = (payload: any) => Promise<void>;
+
 @Injectable()
-export class KafkaConsumer implements OnModuleInit, OnModuleDestroy {
-  private readonly kafka: Kafka;
+export class KafkaConsumer implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly consumer: Consumer;
-  private handlers: Map<string, (message: any) => Promise<void>> = new Map();
+  private readonly handlers = new Map<string, Handler>();
 
   constructor(
-    private readonly config: ConfigService,
+    config: ConfigService,
     private readonly metricsService: MetricsService,
   ) {
-    this.kafka = new Kafka({
-      brokers: [this.config.get<string>('KAFKA_BROKER')],
+    const kafka = new Kafka({
+      brokers: [config.getOrThrow<string>('KAFKA_BROKER')],
       clientId: 'notification-service-consumer',
     });
-    this.consumer = this.kafka.consumer({ groupId: 'notification-service-group' });
+    this.consumer = kafka.consumer({ groupId: 'notification-service-group' });
   }
 
-  async onModuleInit() {
-    try {
-      await this.consumer.connect();
-      await this.consumer.subscribe({
-        topics: [
-          'driver.assigned',
-          'ride.status.updated',
-          'ride.completed',
-          'payment.completed',
-          'payment.failed',
-        ],
-        fromBeginning: false,
-      });
+  registerHandler(topic: string, handler: Handler) {
+    this.handlers.set(topic, handler);
+  }
 
-      await this.consumer.run({
-        eachMessage: async ({ topic, message }) => {
-          try {
-            const payload = JSON.parse(message.value.toString());
-            const handler = this.handlers.get(topic);
-            if (handler) {
-              await handler(payload);
-              this.metricsService.kafkaMessagesConsumedTotal.inc({ topic });
-            }
-          } catch (error) {
-            logger.error('Failed to process Kafka message', {
-              error: (error as Error).message,
-              topic,
-            });
-          }
-        },
-      });
+  // handlers are registered in NotificationService.onModuleInit, so start consuming only
+  // after every module is initialised, otherwise early events have no handler and are lost
+  async onApplicationBootstrap() {
+    await this.consumer.connect();
+    await this.consumer.subscribe({ topics: [...this.handlers.keys()], fromBeginning: false });
 
-      logger.info('Kafka consumer connected and subscribed to notification topics');
-    } catch (error) {
-      logger.error('Failed to connect Kafka consumer', {
-        error: (error as Error).message,
-      });
-      throw error;
-    }
+    await this.consumer.run({
+      eachMessage: async ({ topic, message }) => {
+        try {
+          const payload = JSON.parse(message.value.toString());
+          await this.handlers.get(topic)(payload);
+          this.metricsService.kafkaMessagesConsumedTotal.inc({ topic });
+        } catch (error) {
+          // notifications are real-time and best effort: a retried push minutes later is useless,
+          // so count and log the failure and move on instead of blocking the partition
+          this.metricsService.kafkaMessagesFailedTotal.inc({ topic });
+          logger.error('Failed to process Kafka message', {
+            topic,
+            error: (error as Error).message,
+          });
+        }
+      },
+    });
+
+    logger.info('Kafka consumer running', { topics: [...this.handlers.keys()] });
   }
 
   async onModuleDestroy() {
     await this.consumer.disconnect();
-    logger.info('Kafka consumer disconnected');
-  }
-
-  registerHandler(topic: string, handler: (message: any) => Promise<void>) {
-    this.handlers.set(topic, handler);
   }
 }

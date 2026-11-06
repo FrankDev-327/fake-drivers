@@ -66,7 +66,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     lat?: number,
     lng?: number,
   ): Promise<void> {
-    if (status === DriverStatus.AVAILABLE && lat && lng) {
+    if (status === DriverStatus.AVAILABLE && lat != null && lng != null) {
       await this.updateDriverLocation(driverId, lat, lng);
     } else {
       // driver is busy or offline, remove from available pool

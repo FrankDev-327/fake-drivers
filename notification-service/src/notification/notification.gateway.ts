@@ -5,9 +5,7 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
 import { MetricsService } from '../metrics/metrics.service';
-import { RedisService } from '../redis/redis.service';
 import logger from '../../logger';
 
 @WebSocketGateway({
@@ -18,18 +16,7 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
   @WebSocketServer()
   server: Server;
 
-  constructor(
-    private readonly metricsService: MetricsService,
-    private readonly redisService: RedisService,
-  ) {}
-
-  afterInit() {
-    // attach Redis adapter for horizontal scaling
-    this.server.adapter(
-      createAdapter(this.redisService.pubClient, this.redisService.subClient),
-    );
-    logger.info('Socket.io Redis adapter attached');
-  }
+  constructor(private readonly metricsService: MetricsService) {}
 
   handleConnection(client: Socket) {
     const userId = client.handshake.query.userId as string;
@@ -41,19 +28,29 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
     }
 
     // join room named after userId so we can target this user specifically
+    client.data.userId = userId;
     client.join(userId);
-    this.metricsService.socketConnectionsTotal.inc();
+    this.metricsService.socketConnectionsActive.inc();
 
     logger.info('Socket client connected', { userId, socketId: client.id });
   }
 
   handleDisconnect(client: Socket) {
-    this.metricsService.socketConnectionsTotal.dec();
+    // rejected connections were never counted, so don't decrement for them
+    if (!client.data.userId) return;
+
+    this.metricsService.socketConnectionsActive.dec();
     logger.info('Socket client disconnected', { socketId: client.id });
   }
 
   // emit to a specific user by their userId
-  emitToUser(userId: string, event: string, payload: any) {
+  emitToUser(userId: string | undefined, event: string, payload: any) {
+    if (!userId) {
+      this.metricsService.notificationsSkippedTotal.inc({ event_type: event });
+      logger.warn('Notification skipped, event has no recipient', { event });
+      return;
+    }
+
     this.server.to(userId).emit(event, payload);
     this.metricsService.notificationsSentTotal.inc({ event_type: event });
     logger.info('Notification sent', { userId, event });

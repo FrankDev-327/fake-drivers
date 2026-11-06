@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
-import { KafkaService } from './kafka.consumer';
+import { KafkaConsumer } from './kafka.consumer';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  providers: [KafkaService]
+  imports: [MetricsModule],
+  providers: [KafkaConsumer],
+  exports: [KafkaConsumer],
 })
 export class KafkaModule {}

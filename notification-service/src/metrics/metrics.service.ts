@@ -7,9 +7,11 @@ export class MetricsService {
 
   readonly httpRequestsTotal: Counter;
   readonly httpRequestDuration: Histogram;
-  readonly socketConnectionsTotal: Gauge;
+  readonly socketConnectionsActive: Gauge;
   readonly notificationsSentTotal: Counter;
+  readonly notificationsSkippedTotal: Counter;
   readonly kafkaMessagesConsumedTotal: Counter;
+  readonly kafkaMessagesFailedTotal: Counter;
 
   constructor() {
     this.registry = new Registry();
@@ -31,8 +33,9 @@ export class MetricsService {
       registers: [this.registry],
     });
 
-    this.socketConnectionsTotal = new Gauge({
-      name: 'socket_connections_total',
+    // a gauge goes up and down, so no _total suffix (that's for counters)
+    this.socketConnectionsActive = new Gauge({
+      name: 'socket_connections_active',
       help: 'Current number of active Socket.io connections',
       registers: [this.registry],
     });
@@ -44,9 +47,23 @@ export class MetricsService {
       registers: [this.registry],
     });
 
+    this.notificationsSkippedTotal = new Counter({
+      name: 'notifications_skipped_total',
+      help: 'Notifications not sent because the event had no recipient id',
+      labelNames: ['event_type'],
+      registers: [this.registry],
+    });
+
     this.kafkaMessagesConsumedTotal = new Counter({
       name: 'kafka_messages_consumed_total',
       help: 'Total number of Kafka messages consumed',
+      labelNames: ['topic'],
+      registers: [this.registry],
+    });
+
+    this.kafkaMessagesFailedTotal = new Counter({
+      name: 'kafka_messages_failed_total',
+      help: 'Kafka messages that could not be parsed or handled',
       labelNames: ['topic'],
       registers: [this.registry],
     });

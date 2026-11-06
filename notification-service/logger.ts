@@ -9,7 +9,7 @@ const logger = createLogger({
   transports: [
     new transports.Console(),
     new transports.File({
-      filename: path.join('/logs', 'auth-service.log'),
+      filename: path.join('/logs', 'notification-service.log'),
     }),
   ],
 });

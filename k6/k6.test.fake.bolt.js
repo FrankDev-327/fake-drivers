@@ -157,6 +157,12 @@ function s3Url(url) {
   return url.replace(/^https?:\/\/[^/]+/, S3_URL);
 }
 
+// xk6-socket.io v0.1.0 calls custom event handlers with the array of emitted arguments
+// (payload[1:] in its module.go), not the first argument as its README says
+function eventPayload(args) {
+  return Array.isArray(args) ? args[0] : args;
+}
+
 // poll until fn() is true; returns elapsed ms, or -1 on timeout
 function waitFor(fn, timeoutMs, stepSeconds = 0.25) {
   const start = Date.now();
@@ -167,15 +173,23 @@ function waitFor(fn, timeoutMs, stepSeconds = 0.25) {
   return -1;
 }
 
+// __VU / __ITER only exist inside a VU iteration; setup() runs outside one, where __ITER is undefined
+function who() {
+  return typeof __ITER === 'undefined' ? 'setup' : `${__VU}.${__ITER}`;
+}
+
 function register(role) {
-  const email = `${role}.${__VU}.${__ITER}.${Date.now()}@k6.fakebolt.com`;
+  const email = `${role}.${who()}.${Date.now()}.${Math.floor(Math.random() * 1e6)}@k6.fakebolt.com`;
   const res = http.post(
     `${GATEWAY_URL}/auth/register`,
-    JSON.stringify({ email, password: PASSWORD, name: `k6-${role}-${__VU}`, role }),
+    JSON.stringify({ email, password: PASSWORD, name: `k6-${role}-${who()}`, role }),
     { headers: JSON_HEADERS, ...req('POST /auth/register') },
   );
   check(res, { [`${role} registered`]: (r) => r.status === 201 && !!parse(r)?.token });
   register_duration.add(res.timings.duration, { role });
+  if (res.status !== 201) {
+    console.error(`register ${role} failed: ${res.status} ${String(res.body).slice(0, 300)}`);
+  }
 
   const token = parse(res)?.token;
   if (!token) return null;
@@ -395,7 +409,8 @@ export function driverRideFlow(data) {
         if (!rideId) socket.close();
       });
 
-      socket.on('ride_request', (msg) => {
+      socket.on('ride_request', (args) => {
+        const msg = eventPayload(args);
         if (!msg || msg.rideId !== rideId || assigned) return;
         assigned = true;
         ride_assignment_time.add(Date.now() - requestedAt);
@@ -431,7 +446,8 @@ export function driverRideFlow(data) {
         if (completed.status === 200) rides_completed.add(1);
       });
 
-      socket.on('ride_completed', (msg) => {
+      socket.on('ride_completed', (args) => {
+        const msg = eventPayload(args);
         if (msg?.rideId !== rideId) return;
         check(msg, { 'driver notified the ride is completed': (m) => m.rideId === rideId });
         socket.close();
@@ -559,10 +575,14 @@ function businessResult(data) {
     }
   }
 
+  // a threshold with no samples counts as passed, so a run that never got going would look green
+  const iterations = value(data, 'iterations', 'count') || 0;
+  const verdict = iterations === 0 ? 'NO DATA (no iteration ran, check the setup error above)' : failed.length === 0 ? 'PASSED' : 'FAILED';
+
   const lines = [
     '',
     '═══════════════════════════════════════════════',
-    `  fake-bolt k6 result: ${failed.length === 0 ? 'PASSED' : 'FAILED'}`,
+    `  fake-bolt k6 result: ${verdict}`,
     '═══════════════════════════════════════════════',
     `  Drivers signed up ............ ${n(value(data, 'drivers_registered', 'count'))}`,
     `  Online without photo refused . ${n(value(data, 'driver_online_refused_no_photo', 'count'))} (rule held ${pct(value(data, 'no_photo_refused_rate', 'rate'))})`,
@@ -578,6 +598,7 @@ function businessResult(data) {
     `  Receipts emailed ............. ${n(value(data, 'receipts_delivered', 'count'))} (${pct(value(data, 'receipt_delivered_rate', 'rate'))}), p95 ${ms(value(data, 'receipt_delivery_time', 'p(95)'))}`,
     `  Riders signed up ............. ${n(value(data, 'riders_registered', 'count'))}`,
     `  HTTP requests ................ ${n(value(data, 'http_reqs', 'count'))}, failed ${pct(value(data, 'http_req_failed', 'rate'))}, p95 ${ms(value(data, 'http_req_duration', 'p(95)'))}`,
+    `  Iterations ................... ${n(iterations)}`,
     `  Checks passed ................ ${pct(value(data, 'checks', 'rate'))}`,
     `  Socket errors ................ ${n(value(data, 'socket_errors', 'count'))}`,
   ];

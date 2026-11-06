@@ -2,7 +2,7 @@
 
 A ride-hailing backend inspired by Bolt, built as microservices with NestJS, TypeScript, PostgreSQL, Redis, Kafka and Socket.io, plus a fake AWS (Floci) for S3 and a full Prometheus / Grafana / Loki observability stack.
 
-> **Status: work in progress.** All 9 services compile, resolve their Nest dependencies and have no known boot blockers left, but the stack has **not been run in Docker yet**, so the first `docker compose up` will probably surface a few small bugs. The full, filterable gap list lives in [`project-analysis.html`](project-analysis.html).
+> **Status: work in progress, but the core flow works end to end.** The full stack boots in Docker and the k6 load test **passes all 15 thresholds**: 284 drivers signed up, proved the photo rules, went online, got matched, drove a ride and went back to the pool, and every rider got a receipt email. See [Load test results](#load-test-results).
 
 ## Architecture
 
@@ -299,6 +299,35 @@ Metrics are also pushed to Prometheus (`experimental-prometheus-rw`), so the run
 
 Ride and driver-profile endpoints aren't behind the gateway yet, so the test calls driver-service and ride-service directly on the compose network.
 
+## Load test results
+
+First full run, 6 Nov 2026: about 4 minutes, up to 7 VUs (5 driver flows + 2 rider apps). **Result: PASSED, 15/15 thresholds.**
+
+📊 Full HTML report: [`k6_reports/fake-bolt.k6.html`](k6_reports/fake-bolt.k6.html). GitHub shows HTML as source, so download it or open it locally. Also: [`fake-bolt.k6.result.txt`](k6_reports/fake-bolt.k6.result.txt) (business summary) and [`fake-bolt.k6.summary.json`](k6_reports/fake-bolt.k6.summary.json) (raw).
+
+| Business rule / flow | Result |
+|---|---|
+| Driver can't go online without a photo (422) | 284 / 284 refused (100%) |
+| Photo over 5 MB or not an image type refused | 568 / 568 |
+| Fake photo (text sent as `image/png`) rejected on confirm | 284 / 284 (100%) |
+| Real photo accepted, driver online after the Kafka sync | 284 / 284 (100%) |
+| Ride requested → driver gets `ride_request` over Socket.io | 284 / 284 (100%), 0 timeouts |
+| Driver can't change status mid-ride (409) | 284 / 284 |
+| Ride completed → driver back in the pool | 284 / 284 |
+| Rider gets the receipt email (SES on Floci) | 284 / 284 (100%) |
+
+| Timing | avg | p95 | p99 |
+|---|---|---|---|
+| Ride assignment (request → driver notified) | 11 ms | **18 ms** | 70 ms |
+| Photo sync (confirm → allowed online, via Kafka) | 69 ms | 524 ms | 540 ms |
+| Driver BUSY after assignment | 98 ms | 260 ms | 272 ms |
+| Driver back to AVAILABLE after the ride | 120 ms | 260 ms | 270 ms |
+| Receipt emailed after completion | 280 ms | 519 ms | 523 ms |
+| All HTTP requests (8,837, 0 failed) | 16 ms | 69 ms | 89 ms |
+| Socket.io connect (284 sessions) | 0.6 ms | 1 ms | 1.9 ms |
+
+Checks: **10,522 passed, 0 failed**. Things the run caught and that are now fixed: the gateway answering 401 on its public routes, Kafka refusing to start after a restart (ZooKeeper volumes), a missing build dependency in ride-service, the xk6 Go version, and the shape of Socket.io event payloads in k6.
+
 ## Running it
 
 ```bash
@@ -339,12 +368,10 @@ npx pnpm@10.34.8 run start:dev
 
 ## Next up
 
-1. Boot the stack for the first time, fix what it shows, and run k6 end to end.
-2. Grafana dashboards and Alertmanager.
-3. Route rides and riders through the gateway, with identity from the JWT and role checks.
-4. Accept / decline with a timeout, then **forward dispatch**: offer the next ride to a busy driver whose current ride ends near the pickup.
-5. No-driver path (retry with a wider radius, then `ride.matching.failed`), ride state machine, server-side fares.
-6. Payment service with Stripe test mode.
-7. Unit and e2e tests, CI.
+1. Grafana dashboards and Alertmanager.
+2. Route rides and riders through the gateway, with identity from the JWT and role checks.
+3. Accept / decline with a timeout, then **forward dispatch**: offer the next ride to a busy driver whose current ride ends near the pickup.
+4. No-driver path (retry with a wider radius, then `ride.matching.failed`), ride state machine, server-side fares.
+5. Payment service with Stripe test mode.
+6. Unit and e2e tests, CI.
 
-See [`project-analysis.html`](project-analysis.html) for the full list with priorities.

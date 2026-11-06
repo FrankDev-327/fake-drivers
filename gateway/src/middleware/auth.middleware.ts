@@ -32,8 +32,11 @@ export class AuthMiddleware implements NestMiddleware {
   constructor(private readonly jwtService: JwtService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
+    // middleware bound with forRoutes('*') is mounted on the matched path, so req.path is
+    // always "/" here; the real path is in originalUrl (minus the query string)
+    const path = req.originalUrl.split('?')[0].replace(/\/+$/, '') || '/';
     const isPublic = PUBLIC_ROUTES.some(
-      (route) => route.path === req.path && route.method === req.method,
+      (route) => route.path === path && route.method === req.method,
     );
 
     if (isPublic) {
@@ -62,7 +65,7 @@ export class AuthMiddleware implements NestMiddleware {
     } catch (error) {
       logger.warn('Invalid or expired token', {
         error: (error as Error).message,
-        path: req.path,
+        path,
       });
 
       throw new UnauthorizedException('Invalid or expired token');

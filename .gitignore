@@ -112,3 +112,5 @@ gateway_data
 n8n_data
 
 .env
+# local-only gap analysis (kept out of the repo)
+project-analysis.html

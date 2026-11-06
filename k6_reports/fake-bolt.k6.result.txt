@@ -1,0 +1,22 @@
+
+═══════════════════════════════════════════════
+  fake-bolt k6 result: PASSED
+═══════════════════════════════════════════════
+  Drivers signed up ............ 284
+  Online without photo refused . 284 (rule held 100.0%)
+  Photo uploads refused ........ 568 (too big / not an image type)
+  Fake photos rejected ......... 284 (rule held 100.0%)
+  Real photos confirmed ........ 284
+  Drivers online ............... 284 (100.0%), photo sync p95 524 ms
+  Rides requested / assigned ... 284 / 284 (100.0%)
+  Assignment time p95 .......... 18 ms, timeouts -
+  Mid-ride status change refused 284
+  Rides completed .............. 284
+  Drivers back in the pool ..... 284, release p95 260 ms
+  Receipts emailed ............. 284 (100.0%), p95 519 ms
+  Riders signed up ............. 401
+  HTTP requests ................ 8837, failed 0.0%, p95 69 ms
+  Iterations ................... 684
+  Checks passed ................ 100.0%
+  Socket errors ................ -
+═══════════════════════════════════════════════

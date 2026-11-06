@@ -9,6 +9,9 @@ volumes:
   redis-data:
   kafka-data:
   zookeeper-data:
+  zookeeper-log:
+  zookeeper-secrets:
+  kafka-secrets:
   prometheus-data:
   grafana-data:
   loki-data:
@@ -28,7 +31,13 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     volumes:
+      # both folders must persist together with kafka-data: the transaction log lives in /log, and
+      # an anonymous volume there loses the cluster id on recreate, so Kafka exits with
+      # InconsistentClusterIdException
       - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
+      # the image declares this folder as a volume too; named, so `down -v` removes it instead of leaking it
+      - zookeeper-secrets:/etc/zookeeper/secrets
     networks:
       - fake-bolt-network
     healthcheck:
@@ -51,6 +60,8 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 24
     volumes:
       - kafka-data:/var/lib/kafka/data
+      # declared as a volume by the image; named so it doesn't leak as an anonymous volume
+      - kafka-secrets:/etc/kafka/secrets
     networks:
       - fake-bolt-network
     healthcheck:
@@ -111,7 +122,8 @@ services:
     networks:
       - fake-bolt-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      # -d: without it pg_isready probes a database named after the user ("fakebolt"), which logs a FATAL every 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d auth_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -525,8 +537,11 @@ services:
       - email-service
       - floci
       - seed
+      - prometheus
     environment:
       GATEWAY_URL: http://gateway:3000
+      # the entrypoint waits for every service the test calls, not only the gateway
+      WAIT_FOR: http://gateway:3000 http://auth-service:3001 http://driver-service:3002 http://ride-service:3004 http://matching-service:3005 http://notification-service:3007 http://email-service:3008
       NOTIFICATION_URL: http://notification-service:3007
       DRIVER_SERVICE_URL: http://driver-service:3002
       RIDE_SERVICE_URL: http://ride-service:3004

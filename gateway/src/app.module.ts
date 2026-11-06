@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { MetricsMiddleware } from './metricsmiddleware/metrics.middleware';
 import { MetricsModule } from './metrics/metrics.module';
 import { DriversModule } from './drivers/drivers.module';
+import { UsersModule } from './users/users.module';
 /* 
 import { MetricsModule } from './common/metrics/metrics.module';
 
@@ -46,6 +47,7 @@ import { MetricsController } from './metrics/metrics.controller';
     AuthModule,
     MetricsModule,
     DriversModule,
+    UsersModule,
     /*MetricsModule,
     AuthModule,
     RideModule,

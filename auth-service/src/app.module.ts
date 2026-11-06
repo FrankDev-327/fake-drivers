@@ -8,6 +8,7 @@ import { HealthcheckController } from './healthcheck/healthcheck.controller';
 import { HealthModule } from './healthcheck/healthcheck.module';
 import { UsersService } from './users/users.service';
 import { UsersModule } from './users/users.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
   imports: [AuthModule, MetricsModule,
@@ -15,6 +16,7 @@ import { UsersModule } from './users/users.module';
     TypeOrmModule.forRoot(dbdatasource),
     HealthModule,
     UsersModule,
+    ProfileModule,
   ],
   controllers: [HealthcheckController],
   providers: [UsersService],

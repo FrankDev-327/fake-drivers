@@ -36,6 +36,10 @@ export class DriverEntity {
   })
   status: DriverStatus;
 
+  // synced from auth-service via user.photo.updated, a driver can't go online without a photo
+  @Column({ name: 'has_photo', type: 'boolean', default: false })
+  hasPhoto: boolean;
+
   @Column({ type: 'float', nullable: true })
   lat: number | null;
 

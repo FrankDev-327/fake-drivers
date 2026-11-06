@@ -5,6 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  AfterLoad,
+  AfterInsert,
 } from 'typeorm';
 
 export enum UserRole {
@@ -23,12 +25,26 @@ export class UserEntity {
 
   @Column()
   password: string;
-
+k
   @Column()
   name: string;
 
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;
+
+  // store the S3 key, never the URL, so the bucket host can change
+  @Column({ name: 'photo_key', type: 'varchar', length: 512, nullable: true })
+  photoKey: string | null;
+
+  photoUrl: string | null;
+
+  @AfterLoad()
+  @AfterInsert()
+  buildPhotoUrl() {
+    this.photoUrl = this.photoKey
+      ? `${process.env.S3_PUBLIC_ENDPOINT}/${process.env.S3_BUCKET}/${this.photoKey}`
+      : null;
+  }
 
   @CreateDateColumn()
   createdAt: Date;

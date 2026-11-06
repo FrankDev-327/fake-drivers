@@ -3,12 +3,16 @@ import {
   NotFoundException,
   InternalServerErrorException,
   ConflictException,
+  HttpException,
+  OnModuleInit,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { DriverEntity, DriverStatus } from "../entities/drivers.entity";
 import { RedisService } from "../redis/redis.service";
 import { KafkaProducer } from "../kafka/kafka.service";
+import { KafkaConsumer } from "../kafka/kafka.consumer";
 import { MetricsService } from "../metrics/metrics.service";
 import { UpdateStatusDto } from "./dto/update.status.dto";
 import { UpdateLocationDto } from "./dto/update.location.dto";
@@ -18,21 +22,35 @@ import logger from "../../logger";
 const TOPICS = {
   STATUS_UPDATED: "driver.status.updated",
   LOCATION_UPDATED: "driver.location.updated",
+  USER_PHOTO_UPDATED: "user.photo.updated",
+};
+
+type UserPhotoUpdatedEvent = {
+  userId: string;
+  role: string;
+  hasPhoto: boolean;
 };
 
 @Injectable()
-export class DriverService {
+export class DriverService implements OnModuleInit {
   constructor(
     @InjectRepository(DriverEntity)
     private readonly driverRepository: Repository<DriverEntity>,
     private readonly redisService: RedisService,
     private readonly kafkaProducer: KafkaProducer,
+    private readonly kafkaConsumer: KafkaConsumer,
     private readonly metricsService: MetricsService,
   ) { }
 
+  onModuleInit() {
+    this.kafkaConsumer.registerHandler(TOPICS.USER_PHOTO_UPDATED, (payload) =>
+      this.handleUserPhotoUpdated(payload),
+    );
+  }
+
   async createDriver(dto: CreateDriverDto): Promise<DriverEntity> {
     try {
-      const exists = await this.driverRepository.getDriver({ where: { email: dto.email } });
+      const exists = await this.driverRepository.findOne({ where: { email: dto.email } });
       if (exists) {
         throw new ConflictException('Driver with this email already exists');
       }
@@ -78,6 +96,14 @@ export class DriverService {
     try {
       const driver = await this.getDriver(id);
 
+      // no photo, no going online: the driver never enters the GEO pool,
+      // so matching can't assign them a ride and they can't start one
+      if (dto.status === DriverStatus.AVAILABLE && !driver.hasPhoto) {
+        throw new UnprocessableEntityException(
+          "Upload a profile photo before going online",
+        );
+      }
+
       await this.driverRepository.update(id, { status: dto.status });
       await this.redisService.handleDriverStatusChange(
         id,
@@ -100,7 +126,7 @@ export class DriverService {
 
       return { ...driver, status: dto.status };
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      if (error instanceof HttpException) throw error;
       logger.error("Failed to update driver status", {
         error: (error as Error).message,
         driverId: id,
@@ -151,5 +177,41 @@ export class DriverService {
     } finally {
       end();
     }
+  }
+
+  private async handleUserPhotoUpdated(event: UserPhotoUpdatedEvent): Promise<void> {
+    if (event.role !== "driver") return;
+
+    const driver = await this.driverRepository.findOne({
+      where: { userId: event.userId },
+    });
+    if (!driver) {
+      // driver profile not created yet; the photo flag is only synced for existing drivers
+      logger.warn("Photo update for a user with no driver profile", {
+        userId: event.userId,
+      });
+      return;
+    }
+
+    await this.driverRepository.update(driver.id, { hasPhoto: event.hasPhoto });
+
+    // photo removed while online: take the driver offline and out of the matching pool.
+    // a busy driver keeps the current ride but can't go online again afterwards
+    if (!event.hasPhoto && driver.status === DriverStatus.AVAILABLE) {
+      await this.driverRepository.update(driver.id, { status: DriverStatus.OFFLINE });
+      await this.redisService.removeDriverFromGeo(driver.id);
+      await this.kafkaProducer.publish(TOPICS.STATUS_UPDATED, {
+        driverId: driver.id,
+        status: DriverStatus.OFFLINE,
+        reason: "profile_photo_removed",
+        timestamp: new Date().toISOString(),
+      });
+      this.metricsService.driverStatusUpdatesTotal.inc({ status: DriverStatus.OFFLINE });
+    }
+
+    logger.info("Driver photo flag synced", {
+      driverId: driver.id,
+      hasPhoto: event.hasPhoto,
+    });
   }
 }

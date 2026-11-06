@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HealthController } from './health/health.controller';
 import { MetricsModule } from './metrics/metrics.module';
 import { RedisService } from './redis/redis.service';
 import { RedisModule } from './redis/redis.module';
@@ -8,7 +9,7 @@ import { KafkaModule } from './kafka/kafka.module';
 
 @Module({
   imports: [MetricsModule, RedisModule, NotificationModule, KafkaModule],
-  controllers: [],
+  controllers: [HealthController],
   providers: [RedisService, NotificationGateway],
 })
 export class AppModule {}

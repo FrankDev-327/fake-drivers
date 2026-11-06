@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { HealthController } from './health/health.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TerminusModule } from '@nestjs/terminus';
@@ -52,7 +53,7 @@ import { MetricsController } from './metrics/metrics.controller';
     RiderModule,
     PaymentModule,*/
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule implements NestModule {

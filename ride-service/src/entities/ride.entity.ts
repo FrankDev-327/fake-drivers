@@ -21,11 +21,11 @@ export class RideEntity {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ name: 'rider_id', type: 'uuid' })
   riderId: string;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ name: 'driver_id', type: 'uuid', nullable: true })
   driverId: string | null;
 
   @Column({
@@ -35,24 +35,24 @@ export class RideEntity {
   })
   status: RideStatus;
 
-  @Column({ type: 'float' })
+  @Column({ name: 'pickup_lat', type: 'float' })
   pickupLat: number;
 
-  @Column({ type: 'float' })
+  @Column({ name: 'pickup_lng', type: 'float' })
   pickupLng: number;
 
-  @Column({ type: 'float' })
+  @Column({ name: 'destination_lat', type: 'float' })
   destinationLat: number;
 
-  @Column({ type: 'float' })
+  @Column({ name: 'destination_lng', type: 'float' })
   destinationLng: number;
 
   @Column({ type: 'float', nullable: true })
   fare: number | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

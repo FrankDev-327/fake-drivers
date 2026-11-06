@@ -13,7 +13,7 @@ export class RiderEntity {
   id: string;
 
   @Index({ unique: true })
-  @Column({ unique: true })
+  @Column({ name: 'user_id', unique: true })
   userId: string;
 
   @Column()
@@ -21,11 +21,11 @@ export class RiderEntity {
 
   @Index({ unique: true })
   @Column({ unique: true })
-  email: string;k
+  email: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

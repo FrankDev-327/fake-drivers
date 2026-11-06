@@ -25,7 +25,7 @@ export class UserEntity {
 
   @Column()
   password: string;
-k
+
   @Column()
   name: string;
 
@@ -46,9 +46,9 @@ k
       : null;
   }
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

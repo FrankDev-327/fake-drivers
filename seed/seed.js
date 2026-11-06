@@ -26,6 +26,12 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// register returns only { token }; the user id is the JWT's "sub" claim
+function userIdFromToken(token) {
+    const payload = token.split('.')[1];
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')).sub;
+}
+
 async function registerUser(email, password, name, role) {
     const response = await axios.post(`${AUTH_SERVICE_URL}/auth/register`, {
         email,
@@ -33,7 +39,23 @@ async function registerUser(email, password, name, role) {
         name,
         role,
     });
-    return response.data;
+    const { token } = response.data;
+    return { token, user: { id: userIdFromToken(token) } };
+}
+
+// compose only waits for containers to start, not to be ready, so wait for the services here
+async function waitForService(name, url, tries = 60) {
+    for (let i = 1; i <= tries; i++) {
+        try {
+            await axios.get(`${url}/health`, { timeout: 2000 });
+            console.log(`${name} is up`);
+            return;
+        } catch (error) {
+            console.log(`waiting for ${name} (${i}/${tries})`);
+            await sleep(2000);
+        }
+    }
+    throw new Error(`${name} did not come up at ${url}`);
 }
 
 async function createDriver(userId, name, email) {
@@ -114,6 +136,9 @@ async function main() {
     console.log(`RIDER_SERVICE_URL: ${RIDER_SERVICE_URL}`);
 
     try {
+        await waitForService('auth-service', AUTH_SERVICE_URL);
+        await waitForService('driver-service', DRIVER_SERVICE_URL);
+        await waitForService('rider-service', RIDER_SERVICE_URL);
         await Promise.all([seedDrivers(), seedRiders()]);
         console.log('Seed completed successfully!');
     } catch (error) {

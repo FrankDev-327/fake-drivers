@@ -1,0 +1,3 @@
+# the test script, fixtures and reports are mounted at run time, the image only needs k6
+*.js
+fixtures

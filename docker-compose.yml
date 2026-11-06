@@ -41,8 +41,7 @@ services:
     image: confluentinc/cp-kafka:7.6.0
     container_name: kafka
     depends_on:
-      zookeeper:
-        condition: service_healthy
+      - zookeeper
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -88,6 +87,7 @@ services:
       FLOCI_STORAGE_MODE: persistent
       FLOCI_STORAGE_PERSISTENT_PATH: /app/data
       S3_BUCKET: fake-bolt-profile-photos
+      SES_SENDER: no-reply@fakebolt.local
     volumes:
       - floci-data:/app/data
       - ./floci/init/ready.d:/etc/floci/init/ready.d:ro
@@ -107,6 +107,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     networks:
       - fake-bolt-network
     healthcheck:
@@ -124,6 +125,8 @@ services:
       context: ./gateway
       dockerfile: Dockerfile
     container_name: gateway
+    # compose doesn't wait for Kafka/Postgres to be ready; a service that boots too early exits and is restarted
+    restart: on-failure
     ports:
       - "3000:3000"
     environment:
@@ -133,22 +136,24 @@ services:
       RIDER_SERVICE_URL: http://rider-service:3003
       RIDE_SERVICE_URL: http://ride-service:3004
       PAYMENT_SERVICE_URL: http://payment-service:3006
+      EMAIL_SERVICE_URL: http://email-service:3008
       JWT_SECRET: ${JWT_SECRET}
       RATE_LIMIT_TTL: ${RATE_LIMIT_TTL}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
     depends_on:
-      auth-service:
-        condition: service_healthy
-      driver-service:
-        condition: service_healthy
-      rider-service:
-        condition: service_healthy
-      ride-service:
-        condition: service_healthy
-      payment-service:
-        condition: service_healthy
+      - auth-service
+      - driver-service
+      - rider-service
+      - ride-service
+      - payment-service
+      - email-service
     volumes:
       - logs-data:/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - fake-bolt-network
 
@@ -157,6 +162,7 @@ services:
       context: ./auth-service
       dockerfile: Dockerfile
     container_name: auth-service
+    restart: on-failure
     environment:
       PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
@@ -170,12 +176,9 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
     depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      floci:
-        condition: service_healthy
+      - postgres
+      - kafka
+      - floci
     volumes:
       - logs-data:/logs
     networks:
@@ -191,6 +194,7 @@ services:
       context: ./driver-service
       dockerfile: Dockerfile
     container_name: driver-service
+    restart: on-failure
     environment:
       PORT: 3002
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/driver_db
@@ -198,12 +202,9 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - kafka
+      - redis
     volumes:
       - logs-data:/logs
     networks:
@@ -219,16 +220,15 @@ services:
       context: ./rider-service
       dockerfile: Dockerfile
     container_name: rider-service
+    restart: on-failure
     environment:
       PORT: 3003
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/rider_db
       KAFKA_BROKER: kafka:9092
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
+      - postgres
+      - kafka
     volumes:
       - logs-data:/logs
     networks:
@@ -244,16 +244,15 @@ services:
       context: ./matching-service
       dockerfile: Dockerfile
     container_name: matching-service
+    restart: on-failure
     environment:
       PORT: 3005
       KAFKA_BROKER: kafka:9092
       REDIS_URL: redis://redis:6379
       SEARCH_RADIUS_KM: 5
     depends_on:
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - kafka
+      - redis
     volumes:
       - logs-data:/logs
     networks:
@@ -269,16 +268,15 @@ services:
       context: ./ride-service
       dockerfile: Dockerfile
     container_name: ride-service
+    restart: on-failure
     environment:
       PORT: 3004
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/ride_db
       KAFKA_BROKER: kafka:9092
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
+      - postgres
+      - kafka
     volumes:
       - logs-data:/logs
     networks:
@@ -294,6 +292,7 @@ services:
       context: ./notification-service
       dockerfile: Dockerfile
     container_name: notification-service
+    restart: on-failure
     ports:
       - "3007:3007"
     environment:
@@ -302,10 +301,8 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - kafka
+      - redis
     volumes:
       - logs-data:/logs
     networks:
@@ -316,11 +313,43 @@ services:
       timeout: 5s
       retries: 5
 
+  email-service:
+    build:
+      context: ./email-service
+      dockerfile: Dockerfile
+    container_name: email-service
+    restart: on-failure
+    environment:
+      PORT: 3008
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/email_db
+      KAFKA_BROKER: kafka:9092
+      AUTH_SERVICE_URL: http://auth-service:3001
+      SES_ENDPOINT: http://floci:4566
+      SES_REGION: us-east-1
+      SES_SENDER: no-reply@fakebolt.local
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      - postgres
+      - kafka
+      - floci
+      - auth-service
+    volumes:
+      - logs-data:/logs
+    networks:
+      - fake-bolt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3008/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   payment-service:
     build:
       context: ./payment-service
       dockerfile: Dockerfile
     container_name: payment-service
+    restart: on-failure
     environment:
       PORT: 3006
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/payment_db
@@ -330,12 +359,9 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - kafka
+      - redis
     volumes:
       - logs-data:/logs
     networks:
@@ -362,12 +388,9 @@ services:
       SEED_RIDERS: 200
       SEED_DRIVERS: 100
     depends_on:
-      auth-service:
-        condition: service_healthy
-      driver-service:
-        condition: service_healthy
-      rider-service:
-        condition: service_healthy
+      - auth-service
+      - driver-service
+      - rider-service
     networks:
       - fake-bolt-network
     restart: 'no'
@@ -382,8 +405,7 @@ services:
     environment:
       REDIS_ADDR: redis://redis:6379
     depends_on:
-      redis:
-        condition: service_healthy
+      - redis
     networks:
       - fake-bolt-network
 
@@ -393,8 +415,7 @@ services:
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=disable"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     networks:
       - fake-bolt-network
 
@@ -404,8 +425,7 @@ services:
     command:
       - --kafka.server=kafka:9092
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
     networks:
       - fake-bolt-network
 
@@ -480,29 +500,44 @@ services:
       - matching-service
       - payment-service
       - notification-service
+      - email-service
     networks:
       - fake-bolt-network
 
   # ─────────────────────────────────────────
-  # K6
+  # K6 (custom image with Socket.io, runs last, exits when the test ends)
   # ─────────────────────────────────────────
 
   k6:
     build:
-      context: ./docker
-      dockerfile: Dockerfile.k6
+      context: ./k6
+      dockerfile: Dockerfile
     container_name: k6
-    volumes:
-      - ./k6:/scripts
+    profiles:
+      - testing
+    depends_on:
+      - gateway
+      - auth-service
+      - driver-service
+      - ride-service
+      - matching-service
+      - notification-service
+      - email-service
+      - floci
+      - seed
     environment:
       GATEWAY_URL: http://gateway:3000
       NOTIFICATION_URL: http://notification-service:3007
+      DRIVER_SERVICE_URL: http://driver-service:3002
+      RIDE_SERVICE_URL: http://ride-service:3004
+      S3_URL: http://floci:4566
       K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
-    depends_on:
-      - seed
-      - gateway
-      - notification-service
+      K6_PROMETHEUS_RW_TREND_STATS: p(95),p(99),avg,max
+    volumes:
+      - ./k6/k6.test.fake.bolt.js:/scripts/k6.test.fake.bolt.js:ro
+      - ./k6/fixtures:/scripts/fixtures:ro
+      - ./k6_reports:/reports
+    command: ["/scripts/k6.test.fake.bolt.js"]
+    restart: "no"
     networks:
       - fake-bolt-network
-    profiles:
-      - testing

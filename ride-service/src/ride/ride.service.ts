@@ -108,13 +108,24 @@ export class RideService implements OnModuleInit {
         ? TOPICS.RIDE_COMPLETED
         : TOPICS.RIDE_STATUS_UPDATED;
 
+      const now = new Date().toISOString();
       await this.kafkaProducer.publish(topic, {
         rideId: id,
         riderId: ride.riderId,
         driverId: ride.driverId,
         status: dto.status,
         fare: dto.fare ?? ride.fare,
-        timestamp: new Date().toISOString(),
+        // ride.completed carries the trip itself, so email-service can write the receipt
+        // (and keep the rider's history) without calling ride-service back
+        ...(dto.status === RideStatus.COMPLETED && {
+          pickupLat: ride.pickupLat,
+          pickupLng: ride.pickupLng,
+          destinationLat: ride.destinationLat,
+          destinationLng: ride.destinationLng,
+          requestedAt: ride.createdAt,
+          completedAt: now,
+        }),
+        timestamp: now,
       });
 
       this.metricsService.rideStatusUpdatesTotal.inc({ status: dto.status });
@@ -134,9 +145,12 @@ export class RideService implements OnModuleInit {
         driverId: payload.driverId,
         status: RideStatus.MATCHED,
       });
+      const ride = await this.getRide(payload.rideId);
 
       await this.kafkaProducer.publish(TOPICS.RIDE_STATUS_UPDATED, {
         rideId: payload.rideId,
+        // without riderId notification-service has no room to send "matched" to
+        riderId: ride.riderId,
         driverId: payload.driverId,
         status: RideStatus.MATCHED,
         timestamp: new Date().toISOString(),
@@ -149,6 +163,7 @@ export class RideService implements OnModuleInit {
         error: (error as Error).message,
         rideId: payload.rideId,
       });
+      throw error;
     }
   }
 }

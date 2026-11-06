@@ -4,8 +4,6 @@ import logger from '../../logger';
 export class InitRideService1720000000003 implements MigrationInterface {
     async up(queryRunner: QueryRunner): Promise<void> {
         try {
-            await queryRunner.createDatabase('ride_db', true);
-            logger.info('Database ride_db created or already exists');
 
             await queryRunner.createTable(
                 new Table({
@@ -85,6 +83,7 @@ export class InitRideService1720000000003 implements MigrationInterface {
             logger.info('Indexes for rides table created');
         } catch (error) {
             logger.error('Migration InitRideService up failed', { error: (error as Error).message });
+      throw error;
         }
     }
 
@@ -97,6 +96,7 @@ export class InitRideService1720000000003 implements MigrationInterface {
             logger.info('Table rides dropped');
         } catch (error) {
             logger.error('Migration InitRideService down failed', { error: (error as Error).message });
+      throw error;
         }
     }
 }

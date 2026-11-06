@@ -4,8 +4,6 @@ import logger from "../../logger";
 export class CreateDriversDb1783934256694 implements MigrationInterface {
   async up(queryRunner: QueryRunner): Promise<void> {
     try {
-      await queryRunner.createDatabase("driver_db", true);
-      logger.info("Database driver_db created or already exists");
 
       await queryRunner.createTable(
         new Table({

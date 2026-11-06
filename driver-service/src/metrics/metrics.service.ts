@@ -45,7 +45,6 @@ export class MetricsService {
     this.driverLocationUpdatesTotal = new Counter({
       name: 'driver_location_updates_total',
       help: 'Total number of driver location updates received',
-      labelNames: ['driver_id'],
       registers: [this.registry],
     });
 
@@ -59,7 +58,6 @@ export class MetricsService {
     this.driverLocationUpdateDuration = new Histogram({
       name: 'driver_location_update_duration_seconds',
       help: 'Duration of driver location update including Redis GEO and Kafka publish',
-      labelNames: ['driver_id'],
       buckets: [0.005, 0.01, 0.05, 0.1, 0.3, 0.5, 1],
       registers: [this.registry],
     });

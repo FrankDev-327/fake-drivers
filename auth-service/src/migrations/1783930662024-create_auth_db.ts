@@ -5,8 +5,6 @@ export class CreateAuthDb1783930662024 implements MigrationInterface {
 
       async up(queryRunner: QueryRunner): Promise<void> {
     try {
-      await queryRunner.createDatabase('user_db', true);
-      logger.info('Database user_db created or already exists');
  
       await queryRunner.createTable(
         new Table({
@@ -75,6 +73,7 @@ export class CreateAuthDb1783930662024 implements MigrationInterface {
       logger.error('Migration InitAuthService up failed', {
         error: (error as Error).message,
       });
+      throw error;
     }
   }
 
@@ -90,7 +89,8 @@ async down(queryRunner: QueryRunner): Promise<void> {
     } catch (error) {
       logger.error('Migration InitAuthService down failed', {
         error: (error as Error).message,
-      });;
+      });
+      throw error;
     }
   }
 }

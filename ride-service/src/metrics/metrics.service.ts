@@ -11,6 +11,7 @@ export class MetricsService {
   readonly rideStatusUpdatesTotal: Counter;
   readonly kafkaMessagesProducedTotal: Counter;
   readonly kafkaMessagesConsumedTotal: Counter;
+  readonly kafkaMessagesFailedTotal: Counter;
 
   constructor() {
     this.registry = new Registry();
@@ -55,6 +56,13 @@ export class MetricsService {
     this.kafkaMessagesConsumedTotal = new Counter({
       name: 'kafka_messages_consumed_total',
       help: 'Total number of Kafka messages consumed',
+      labelNames: ['topic'],
+      registers: [this.registry],
+    });
+
+    this.kafkaMessagesFailedTotal = new Counter({
+      name: 'kafka_messages_failed_total',
+      help: 'Kafka messages that could not be parsed or handled',
       labelNames: ['topic'],
       registers: [this.registry],
     });

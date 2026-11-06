@@ -2,7 +2,7 @@
 
 A ride-hailing backend inspired by Bolt, built as microservices with NestJS, TypeScript, PostgreSQL, Redis, Kafka and Socket.io, plus a fake AWS (Floci) for S3 and a full Prometheus / Grafana / Loki observability stack.
 
-> **Status: work in progress.** Every service compiles and the core ride flow is wired end to end in code, but the stack has not been booted in Docker yet. A few P0 items (wrong ports in 4 services, the DB connection settings) still block a clean `docker compose up`. The full, filterable gap list lives in [`project-analysis.html`](project-analysis.html).
+> **Status: work in progress.** All 9 services compile, resolve their Nest dependencies and have no known boot blockers left, but the stack has **not been run in Docker yet**, so the first `docker compose up` will probably surface a few small bugs. The full, filterable gap list lives in [`project-analysis.html`](project-analysis.html).
 
 ## Architecture
 
@@ -22,13 +22,14 @@ flowchart LR
         matching[matching-service :3005<br/>nearest driver]
         notification[notification-service :3007<br/>Socket.io]
         payment[payment-service :3006<br/>scaffold]
+        email[email-service :3008<br/>ride receipts]
     end
 
     subgraph infra[Infrastructure]
         pg[(PostgreSQL<br/>one DB per service)]
         redis[(Redis<br/>GEO pool + Socket.io adapter)]
         kafka{{Kafka}}
-        floci[(Floci S3<br/>profile photos)]
+        floci[(Floci<br/>S3 photos + SES email)]
     end
 
     client -->|HTTP| gateway
@@ -37,6 +38,7 @@ flowchart LR
 
     gateway --> auth
     gateway --> driver
+    gateway --> email
 
     auth --> pg
     auth --> floci
@@ -44,6 +46,9 @@ flowchart LR
     rider --> pg
     ride --> pg
     payment --> pg
+    email --> pg
+    email --> floci
+    email -->|rider email| auth
 
     driver --> redis
     matching --> redis
@@ -54,6 +59,7 @@ flowchart LR
     ride <--> kafka
     matching <--> kafka
     kafka --> notification
+    kafka --> email
 ```
 
 - **Kafka over RabbitMQ:** the services exchange a stream of facts (ride requested, driver assigned...) that several consumers read independently.
@@ -73,9 +79,15 @@ flowchart LR
 | matching-service | 3005 | Redis GEO | Consumes `ride.requested`, atomically claims the nearest driver, publishes `driver.assigned` |
 | notification-service | 3007 (published) | Redis (adapter) | Socket.io push to riders and drivers for ride and payment events |
 | payment-service | 3006 | `payment_db` | Nest scaffold only, Stripe flow still to build |
+| email-service | 3008 | `email_db`, SES | Consumes `ride.completed`, emails the rider a receipt through SES (Floci), keeps every email in `sent_emails`, which is also the rider's ride history |
 | seed | none | none | Creates 100 drivers and 200 riders around Tallinn through the real APIs |
 
-Every service exposes `GET /health` (returns `OK`) for the compose healthchecks.
+Every service exposes `GET /health` (returns `OK`) for the compose healthchecks and `GET /metrics` for Prometheus. All of them listen on the `PORT` compose gives them.
+
+### Databases
+
+- One Postgres instance, one database per service. `auth_db` comes from `POSTGRES_DB`; the rest (`driver_db`, `rider_db`, `ride_db`, `payment_db`, `email_db`) are created by `postgres/init/01-create-databases.sql` on the first boot.
+- Each service's `orm.ts` (at the service root) connects with `DATABASE_URL` and runs its migrations when the service starts (`migrationsRun: true`). Migrations use the QueryRunner API with snake_case columns; entities map their camelCase properties to them with `@Column({ name })`.
 
 ## Ride flow
 
@@ -114,7 +126,7 @@ sequenceDiagram
 | `ride.requested` | ride | matching |
 | `driver.assigned` | matching | ride, driver, notification |
 | `ride.status.updated` | ride | notification, driver (cancellations) |
-| `ride.completed` | ride | notification, driver |
+| `ride.completed` | ride | notification, driver, email |
 | `user.photo.updated` | auth | driver |
 | `driver.status.updated` | driver | none yet |
 | `driver.location.updated` | driver | none yet |
@@ -169,6 +181,36 @@ sequenceDiagram
 - Removing the photo (`DELETE /users/me/photo`) while a driver is online takes them offline and out of the pool.
 - Planned next: a validation Lambda (like fake-vinted) that checks the real file and makes a thumbnail.
 
+## Ride receipts by email (SES on Floci)
+
+When a ride completes, the rider gets a receipt email. It's sent through **AWS SES emulated by Floci**, with the same `@aws-sdk/client-sesv2` code you'd use on real AWS and nothing extra to run.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant RS as ride-service
+    participant K as Kafka
+    participant E as email-service
+    participant DB as email_db
+    participant A as auth-service
+    participant SES as Floci SES
+
+    RS->>K: ride.completed {rideId, riderId, fare, pickup, destination, requestedAt, completedAt}
+    K->>E: ride.completed
+    E->>DB: already sent for this ride? → skip (unique ride_id + type)
+    E->>A: GET /internal/users/:riderId (email, name)
+    E->>DB: insert sent_emails row (pending, ride snapshot)
+    E->>SES: SendEmail (HTML + text receipt)
+    E->>DB: status sent, ses_message_id, sent_at
+```
+
+- **Why a separate service:** email has different rules from socket pushes. A push that arrives 5 min late is useless, so notification-service skips failures. A receipt must be retried and never sent twice, which needs a database. Keeping them apart also means a slow email provider can't delay ride notifications.
+- **Never twice:** the unique `(ride_id, type)` index skips events Kafka delivers again (`emails_duplicate_skipped_total`).
+- **Retries:** if SES or auth-service fails, the consumer rethrows and Kafka retries; the row keeps `attempts` and `last_error`. A rider who doesn't exist is final: recorded as failed, not retried.
+- **Ride history:** each row stores a snapshot of the ride (fare, pickup, destination, times), so `GET /users/me/receipts` shows past rides even when ride-service is down.
+- **Sender identity:** SES only sends from verified addresses, on Floci as on AWS. `floci/init/ready.d/02-verify-ses-sender.sh` verifies `no-reply@fakebolt.local` on boot.
+- **See the emails:** `curl http://localhost:4566/_aws/ses` lists every message Floci captured.
+
 ## API (through the gateway, `http://localhost:3000`)
 
 | Method | Path | Auth | Notes |
@@ -179,6 +221,7 @@ sequenceDiagram
 | POST | `/users/me/photo/upload-url` | JWT | `{content_type, size_bytes}` → presigned URL |
 | POST | `/users/me/photo/confirm` | JWT | `{key}` |
 | DELETE | `/users/me/photo` | JWT | |
+| GET | `/users/me/receipts` | JWT | Past rides with their emailed receipts, newest first |
 | GET | `/drivers/:id` | JWT | |
 | PATCH | `/drivers/:id/status` | JWT | `{status: available\|offline}` (422 without photo, 409 while busy) |
 | PATCH | `/drivers/:id/location` | JWT | `{lat, lng}` |
@@ -191,6 +234,7 @@ Ride and rider endpoints exist on their services (`POST /rides/request`, `GET /r
 ## Observability
 
 - **Metrics:** every service exposes `/metrics` (prom-client). Grafana Alloy scrapes them plus the Kafka, Redis and Postgres exporters and remote-writes to Prometheus.
+- **Email metrics:** `emails_sent_total`, `emails_failed_total{reason}`, `emails_duplicate_skipped_total`, `email_send_duration_seconds`, `email_delivery_delay_seconds` (ride completed → receipt sent). Alerts: `RideReceiptsFailing`, `RideReceiptsSlow`.
 - **Business metrics:** `ride_matching_duration_seconds`, `matching_attempts/success/failed_total`, `driver_location_updates_total`, `driver_status_updates_total`, `ride_requests_total`, `socket_connections_active`, `notifications_sent_total`, `notifications_skipped_total`, `kafka_messages_produced/consumed/failed_total`.
 - **Logs:** Winston writes JSON to `/logs/<service>.log`; Alloy ships them to Loki.
 - **Alerts:** `prometheus/alerts.yml` covers availability, p99 latency, error rate, matching too slow, stale driver locations, Redis memory and Postgres connections (no Alertmanager yet).
@@ -200,7 +244,7 @@ Ride and rider endpoints exist on their services (`POST /rides/request`, `GET /r
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3300 |
 | Loki | http://localhost:3100 |
-| Floci (S3) | http://localhost:4566 |
+| Floci (S3, SES) | http://localhost:4566 (sent emails: `/_aws/ses`) |
 
 ## Docker images
 
@@ -212,14 +256,62 @@ All services use **pnpm 10.34.8** (pinned with `packageManager`, installed in th
 
 `orm.ts` and `logger.ts` live at each service root, which is why the build lands in `dist/src`. A per-service `.dockerignore` keeps `node_modules`, `.env` and tests out of the build context, and the pnpm store is a BuildKit cache mount, so it never ends up in the image. Production dependencies range from 43 MB (matching) to 160 MB (auth).
 
+## Load test (k6)
+
+A custom k6 image (`k6/Dockerfile`) built with [xk6-socket.io](https://github.com/xemax32/xk6-socket.io) v0.1.0, the same extension as fake-vinted. k6's own WebSocket client speaks raw WebSocket, not the Socket.io protocol, so it can't receive notification-service events. It starts after the services it depends on, its entrypoint waits until the gateway answers `/health`, then it runs the test and exits.
+
+**Scenario `driver_ride_flow`** (ramps 2 → 5 VUs), one full driver shift per iteration:
+
+```mermaid
+flowchart LR
+    A[sign up +<br/>driver profile] --> B{go online<br/>no photo}
+    B -->|422| C[photo rules:<br/>6 MB refused<br/>PDF refused<br/>fake PNG rejected]
+    C --> D{go online}
+    D -->|still 422| E[upload real photo]
+    E --> F[online<br/>after Kafka sync]
+    F --> G[Socket.io connect<br/>rider requests a ride]
+    G --> H[ride_request received<br/>driver BUSY]
+    H --> I{go offline<br/>mid-ride}
+    I -->|409| J[ride in_progress<br/>→ completed]
+    J --> K[driver AVAILABLE<br/>again → offline]
+    J --> L[rider's receipt<br/>emailed via SES]
+```
+
+The "fake photo" is a text file uploaded as `image/png`: S3 accepts it, and auth-service's confirm rejects it by checking the file's first bytes (PNG / JPEG / WEBP signatures).
+
+**Scenario `rider_app`** (2 VUs): register, login, wrong password (401), and checks the photo is optional for riders.
+
+**Custom metrics** (all tagged with `test_type` per scenario; URLs with ids are tagged with a fixed `name` like `PATCH /drivers/:id/status`):
+
+| Kind | Metrics |
+|---|---|
+| Counters | `drivers_registered`, `driver_online_refused_no_photo`, `photo_upload_refused`, `fake_photos_rejected`, `photos_confirmed`, `drivers_online`, `rides_requested`, `rides_assigned`, `ride_assignment_timeouts`, `busy_status_change_refused`, `rides_completed`, `drivers_released`, `riders_registered`, `socket_errors` |
+| Timings | `photo_sync_time` (confirm → allowed online), `ride_assignment_time` (request → driver notified), `driver_busy_sync_time`, `driver_release_time`, plus per-endpoint durations |
+| Rates | `no_photo_refused_rate`, `fake_photo_rejected_rate` (both must be > 99%), `driver_online_rate`, `ride_assigned_rate` |
+
+**Summary:** at the end k6 prints its text summary plus a short business result (PASSED / FAILED, drivers online, fake photos rejected, rides assigned, p95 assignment time, failed thresholds). Files written to `k6_reports/`:
+
+- `fake-bolt.k6.html`: HTML report
+- `fake-bolt.k6.result.txt`: the business result
+- `fake-bolt.k6.summary.json`: raw summary
+
+Metrics are also pushed to Prometheus (`experimental-prometheus-rw`), so the run shows up in Grafana next to the service metrics.
+
+Ride and driver-profile endpoints aren't behind the gateway yet, so the test calls driver-service and ride-service directly on the compose network.
+
 ## Running it
 
 ```bash
-cp env.example .env              # set POSTGRES_*, JWT_SECRET, GRAFANA_PASSWORD...
+cp env.example .env              # then set a real JWT_SECRET: openssl rand -hex 32
 docker compose up -d --build     # infra, services, observability, Floci, seed
-docker compose --profile testing up k6   # load test (k6 scripts still to write)
+docker compose ps                # wait until the services show (healthy)
+docker compose --profile testing run --rm k6   # load test, container removed when it ends
 docker compose down -v --rmi all # clean up containers, images and volumes
 ```
+
+- `depends_on` only waits for containers to **start**, not to be ready. The Node services have `restart: on-failure`, so one that boots before Kafka or Postgres is ready exits and comes back; the seed and k6 wait for `/health` themselves.
+- The database init script only runs on an **empty** Postgres volume. If you ran an older version of the stack, do `docker compose down -v` once first.
+- Sent emails: `curl http://localhost:4566/_aws/ses`. k6 reports: `k6_reports/`.
 
 Local development of a single service:
 
@@ -240,15 +332,19 @@ npx pnpm@10.34.8 run start:dev
 - notification-service: real `/metrics`, Redis adapter done the Nest way, module wiring fixed, events without a recipient counted instead of emitted to `undefined`.
 - matching-service: Redis GEO matching implemented with an atomic Lua claim, full matching metrics, consumer that retries instead of dropping ride requests.
 - driver-service: BUSY lifecycle driven by ride events, so a driver on a ride never gets another request.
+- auth-service checks the photo's real bytes on confirm, so a renamed text file can't pass as a driver photo.
+- Boot fixes: `orm.ts` on `DATABASE_URL` with migrations on start, Postgres init script, snake_case column mapping, `PORT` everywhere, Nest wiring fixed in auth/ride/rider (every service passes a dependency preview check), `/metrics` on every service, seed fixed, `restart: on-failure`.
+- k6 load test with a custom Socket.io-capable image, driver photo rules, the full ride flow, custom metrics and a business summary.
+- email-service: ride receipts through SES on Floci, `sent_emails` log with a ride snapshot (QueryRunner migration), no duplicate sends, retries, Prometheus metrics + alerts, scraped by Alloy; `GET /users/me/receipts` on the gateway; k6 checks every completed ride gets its receipt.
 
 ## Next up
 
-1. Fix the hard-coded ports in driver, rider, ride and payment, and make `orm.ts` read `DATABASE_URL`.
-2. Postgres init script for all databases, run migrations on start, snake_case naming strategy.
-3. Boot the stack for the first time and verify the full ride flow.
+1. Boot the stack for the first time, fix what it shows, and run k6 end to end.
+2. Grafana dashboards and Alertmanager.
+3. Route rides and riders through the gateway, with identity from the JWT and role checks.
 4. Accept / decline with a timeout, then **forward dispatch**: offer the next ride to a busy driver whose current ride ends near the pickup.
 5. No-driver path (retry with a wider radius, then `ride.matching.failed`), ride state machine, server-side fares.
 6. Payment service with Stripe test mode.
-7. Tests, k6 scenarios, Grafana dashboards, CI.
+7. Unit and e2e tests, CI.
 
 See [`project-analysis.html`](project-analysis.html) for the full list with priorities.

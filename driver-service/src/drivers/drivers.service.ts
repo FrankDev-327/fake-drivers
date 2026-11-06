@@ -168,9 +168,7 @@ export class DriverService implements OnModuleInit {
     id: string,
     dto: UpdateLocationDto,
   ): Promise<DriverEntity> {
-    const end = this.metricsService.driverLocationUpdateDuration.startTimer({
-      driver_id: id,
-    });
+    const end = this.metricsService.driverLocationUpdateDuration.startTimer();
 
     try {
       const driver = await this.getDriver(id);
@@ -186,7 +184,7 @@ export class DriverService implements OnModuleInit {
         timestamp: new Date().toISOString(),
       });
 
-      this.metricsService.driverLocationUpdatesTotal.inc({ driver_id: id });
+      this.metricsService.driverLocationUpdatesTotal.inc();
       logger.info("Driver location updated", {
         driverId: id,
         lat: dto.lat,

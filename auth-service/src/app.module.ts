@@ -5,7 +5,6 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dbdatasource } from '../orm';
 import { HealthController } from './health/health.controller';
-import { UsersService } from './users/users.service';
 import { UsersModule } from './users/users.module';
 import { ProfileModule } from './profile/profile.module';
 
@@ -17,6 +16,6 @@ import { ProfileModule } from './profile/profile.module';
     ProfileModule,
   ],
   controllers: [HealthController],
-  providers: [UsersService],
+  providers: [],
 })
 export class AppModule { }

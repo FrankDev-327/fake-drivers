@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   HeadObjectCommandOutput,
   PutObjectCommand,
@@ -53,6 +54,14 @@ export class S3Service {
       }
       throw error;
     }
+  }
+
+  // only the first bytes, enough to recognise the file type without downloading the photo
+  async readFirstBytes(key: string, count: number): Promise<Uint8Array> {
+    const object = await this.internalClient.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${count - 1}` }),
+    );
+    return object.Body.transformToByteArray();
   }
 
   async deleteObject(key: string): Promise<void> {

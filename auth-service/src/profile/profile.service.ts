@@ -10,6 +10,7 @@ import {
   CreatePhotoUploadUrlDto,
   MAX_PHOTO_BYTES,
 } from './dto/create-photo-upload-url.dto';
+import { matchesImageSignature, SIGNATURE_BYTES } from './image-signature';
 import logger from '../../looger';
 
 const UPLOAD_URL_EXPIRES_IN = 300;
@@ -75,6 +76,13 @@ export class ProfileService {
     if (!isAllowedType || (object.ContentLength ?? 0) > MAX_PHOTO_BYTES) {
       await this.deleteFromS3(key);
       throw new BadRequestException('Photo must be jpeg, png or webp and 5 MB or smaller');
+    }
+
+    // the Content-Type is whatever the client sent; the bytes have to prove it's really an image
+    const firstBytes = await this.s3Service.readFirstBytes(key, SIGNATURE_BYTES);
+    if (!matchesImageSignature(object.ContentType, firstBytes)) {
+      await this.deleteFromS3(key);
+      throw new BadRequestException('File is not a real jpeg, png or webp image');
     }
 
     // confirming the same key again is allowed, so a client can retry if the event publish failed

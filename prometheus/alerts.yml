@@ -110,6 +110,31 @@ groups:
           description: "Driver location updates have stopped. Matching service may have stale positions."
 
   # ─────────────────────────────────────────
+  # EMAIL
+  # ─────────────────────────────────────────
+
+  - name: email
+    rules:
+
+      - alert: RideReceiptsFailing
+        expr: sum(rate(emails_failed_total{reason="ses_error"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ride receipts are failing to send"
+          description: "SES rejected or timed out on {{ $value }} receipts/s for 2 minutes. Kafka keeps retrying them."
+
+      - alert: RideReceiptsSlow
+        expr: histogram_quantile(0.95, sum(rate(email_delivery_delay_seconds_bucket[5m])) by (le)) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ride receipts arrive late"
+          description: "p95 from ride completed to receipt sent is {{ $value }}s (threshold 60s)."
+
+  # ─────────────────────────────────────────
   # INFRASTRUCTURE
   # ─────────────────────────────────────────
 

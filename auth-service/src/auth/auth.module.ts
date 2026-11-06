@@ -11,7 +11,9 @@ import { UsersModule } from '../users/users.module';
   imports: [
     MetricsModule,
     UsersModule,
+    // global: UsersService (users module) signs tokens too
     JwtModule.registerAsync({
+      global: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET'),

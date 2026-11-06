@@ -33,6 +33,7 @@ prometheus.scrape "fake_bolt_services" {
     { __address__ = "matching-service:3005",     job = "matching-service"     },
     { __address__ = "payment-service:3006",      job = "payment-service"      },
     { __address__ = "notification-service:3007", job = "notification-service" },
+    { __address__ = "email-service:3008",        job = "email-service"        },
   ]
 
   scrape_interval = "15s"
